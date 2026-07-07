@@ -1,0 +1,79 @@
+[
+  {
+    "user_id": "000000001",
+    "refresh_jti": "cVxyXpm_JNtVvrXKUJQZmQ",
+    "refresh_expires_at": "2026-06-01T04:49:11Z",
+    "issued_at": "2026-05-25T04:49:11Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "3J4qw1UmU9W1O4j3ZlqJlA",
+    "refresh_expires_at": "2026-06-01T04:59:28Z",
+    "issued_at": "2026-05-25T04:59:28Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "ZCM9PLiMAP77Sw7-5yxmNQ",
+    "refresh_expires_at": "2026-07-09T10:24:02Z",
+    "issued_at": "2026-07-02T10:24:02Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "-ZUhFzDa5gBq3IiWkm0YqQ",
+    "refresh_expires_at": "2026-07-09T10:26:37Z",
+    "issued_at": "2026-07-02T10:26:37Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "GlgQ_Wntap81MM-wMqYUWA",
+    "refresh_expires_at": "2026-07-09T10:27:42Z",
+    "issued_at": "2026-07-02T10:27:42Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "2j-PHxIuBZh9qFB_SnNMGQ",
+    "refresh_expires_at": "2026-07-09T10:30:29Z",
+    "issued_at": "2026-07-02T10:30:29Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "3LdaQBe1c2_B5a1bQE43Ow",
+    "refresh_expires_at": "2026-07-09T10:33:44Z",
+    "issued_at": "2026-07-02T10:33:44Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "uDe2E0zq8rekwrc-uVvW6w",
+    "refresh_expires_at": "2026-07-09T10:36:59Z",
+    "issued_at": "2026-07-02T10:36:59Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "nKv0GkUorLbw1Q4cH8RroA",
+    "refresh_expires_at": "2026-07-09T10:39:20Z",
+    "issued_at": "2026-07-02T10:39:20Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "kHcE4T6-eePf5F5VDY34ZQ",
+    "refresh_expires_at": "2026-07-09T10:44:38Z",
+    "issued_at": "2026-07-02T10:44:38Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "BjlSou0L2VE3Zt69kgpxZg",
+    "refresh_expires_at": "2026-07-09T10:46:03Z",
+    "issued_at": "2026-07-02T10:46:03Z",
+    "status": "active"
+  }
+]
