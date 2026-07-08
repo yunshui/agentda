@@ -16,20 +16,38 @@ Token 机制：
 - Refresh Token 支持吊销
 """
 
-import os
 import sys
+from pathlib import Path
+
+# Ensure project root is in sys.path so logging_lib is importable
+_project_root = str(Path(__file__).resolve().parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
+import os
 import json
 import base64
-import logging
 import secrets
+import uuid
 import functools
 from datetime import datetime, timezone, timedelta
-from pathlib import Path
 from contextvars import ContextVar
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import JSONResponse
 import httpx
 from mcp.server.fastmcp import FastMCP
+
+from logging_lib import (
+    setup_logging,
+    AccessLogMiddleware,
+    user_id_var,
+    trace_id_var,
+    client_ip_var,
+    method_var,
+    uri_var,
+    status_var,
+    duration_ms_var,
+)
 
 try:
     from cryptography.hazmat.primitives.asymmetric import padding
@@ -41,8 +59,7 @@ except ImportError:
     sys.exit(1)
 
 # 配置日志
-logging.basicConfig(level=logging.INFO)
-logger = logging.getLogger(__name__)
+app_logger, access_logger = setup_logging("mcp")
 
 # 当前用户上下文（每个请求独立）
 current_user_id: ContextVar[str] = ContextVar("current_user_id")
@@ -50,8 +67,9 @@ current_user_id: ContextVar[str] = ContextVar("current_user_id")
 # 创建 MCP 服务
 mcp = FastMCP("FinanceService")
 
-# FastAPI 应用
+# FastAPI 应用（添加访问日志中间件）
 app = FastAPI(title="MCP 远端服务")
+app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=access_logger)
 
 
 # ==================== 安全调用装饰器 ====================
@@ -68,16 +86,16 @@ def secure_api_call(func):
         try:
             return await func(*args, **kwargs)
         except httpx.HTTPStatusError as e:
-            logger.error(f"后端接口调用失败: {e.response.status_code}")
+            app_logger.error(f"后端接口调用失败: {e.response.status_code}")
             return {"error": f"后端接口调用失败: HTTP {e.response.status_code}"}
         except httpx.ConnectError as e:
-            logger.error(f"无法连接后端服务: {e}")
+            app_logger.error(f"无法连接后端服务: {e}")
             return {"error": "无法连接后端服务，请检查服务状态"}
         except httpx.TimeoutException as e:
-            logger.error(f"后端服务响应超时: {e}")
+            app_logger.error(f"后端服务响应超时: {e}")
             return {"error": "后端服务响应超时"}
         except Exception as e:
-            logger.error(f"内部处理错误: {e}")
+            app_logger.error(f"内部处理错误: {e}")
             return {"error": "内部处理错误，请联系管理员"}
     return wrapper
 
@@ -108,7 +126,7 @@ def load_rsa_keys():
                     password=None,
                     backend=default_backend()
                 )
-            logger.info(f"从文件加载私钥: {private_key_file}")
+            app_logger.info(f"从文件加载私钥: {private_key_file}")
 
     # 加载公钥
     env_public = os.environ.get("RSA_PUBLIC_KEY")
@@ -126,13 +144,13 @@ def load_rsa_keys():
                     f.read(),
                     backend=default_backend()
                 )
-            logger.info(f"从文件加载公钥: {public_key_file}")
+            app_logger.info(f"从文件加载公钥: {public_key_file}")
 
     if not private_key:
-        logger.warning("未找到 RSA 私钥，请设置 RSA_PRIVATE_KEY 环境变量或生成密钥对")
+        app_logger.warning("未找到 RSA 私钥，请设置 RSA_PRIVATE_KEY 环境变量或生成密钥对")
 
     if not public_key:
-        logger.warning("未找到 RSA 公钥，请设置 RSA_PUBLIC_KEY 环境变量或生成密钥对")
+        app_logger.warning("未找到 RSA 公钥，请设置 RSA_PUBLIC_KEY 环境变量或生成密钥对")
 
     return private_key, public_key
 
@@ -336,10 +354,13 @@ async def refresh_token(request: Request):
 
         user_id = token_data["user_id"]
 
+        # 设置 MDC 用户上下文
+        user_id_var.set(user_id)
+
         # 生成新的 Access Token
         access_token = generate_access_token(user_id)
 
-        logger.info(f"Token 刷新成功: user={user_id}")
+        app_logger.info(f"Token 刷新成功: user={user_id}")
 
         return {
             "access_token": access_token,
@@ -349,10 +370,10 @@ async def refresh_token(request: Request):
     except HTTPException:
         raise
     except ValueError as e:
-        logger.warning(f"Token 刷新失败: {e}")
+        app_logger.warning(f"Token 刷新失败: {e}")
         raise HTTPException(401, str(e))
     except Exception as e:
-        logger.error(f"Token 刷新异常: {e}")
+        app_logger.error(f"Token 刷新异常: {e}")
         raise HTTPException(500, "刷新失败")
 
 
@@ -377,14 +398,14 @@ async def revoke_token(request: Request):
         # 更新 Token 记录状态
         update_token_status(jti, "revoked")
 
-        logger.info(f"Token 已吊销: jti={jti}")
+        app_logger.info(f"Token 已吊销: jti={jti}")
 
         return {"status": "revoked"}
 
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"吊销 Token 异常: {e}")
+        app_logger.error(f"吊销 Token 异常: {e}")
         raise HTTPException(500, "吊销失败")
 
 
@@ -410,13 +431,16 @@ async def verify_request(request: Request) -> str:
         token_b64 = auth_header
 
     if not token_b64:
-        logger.warning("缺少认证 Token")
+        app_logger.warning("缺少认证 Token")
         raise HTTPException(401, "缺少认证 Token")
 
     try:
         # 解密 Token
         token_data = decrypt_token(token_b64)
         user_id = token_data["user_id"]
+
+        # 设置 MDC 用户上下文
+        user_id_var.set(user_id)
 
         # 验证 Token 类型（必须是 Access Token）
         token_type = token_data.get("token_type", TOKEN_TYPE_ACCESS)
@@ -425,14 +449,14 @@ async def verify_request(request: Request) -> str:
 
         # 验证用户编号格式（必须为9位数字）
         if not user_id.isdigit() or len(user_id) != 9:
-            logger.warning(f"用户编号格式错误: {user_id}")
+            app_logger.warning(f"用户编号格式错误: {user_id}")
             raise HTTPException(400, "用户编号格式错误")
 
-        logger.info(f"用户认证成功: {user_id}")
+        app_logger.info(f"用户认证成功: {user_id}")
         return user_id
 
     except ValueError as e:
-        logger.warning(f"Token 验证失败: {e}")
+        app_logger.warning(f"Token 验证失败: {e}")
         raise HTTPException(401, str(e))
 
 
@@ -713,6 +737,12 @@ async def handle_mcp_request(request: Request):
     2. 注入用户上下文
     3. 根据 method 调用对应的 MCP 方法
     """
+    # 设置 traceId（中间件跳过了 /mcp 路径，需要在此处生成）
+    if trace_id_var.get() == "-":
+        trace_id_var.set(uuid.uuid4().hex[:8])
+    client_ip_var.set(request.client.host if request.client else "-")
+    start_time = datetime.now()
+
     try:
         # 验证认证（解密 Token 获取 user_id）
         user_id = await verify_request(request)
@@ -722,36 +752,43 @@ async def handle_mcp_request(request: Request):
 
         # 获取 MCP 请求体
         mcp_request = await request.json()
-        method = mcp_request.get("method", "")
+        method_name = mcp_request.get("method", "")
         request_id = mcp_request.get("id")
 
         # 记录审计日志
-        logger.info(f"MCP 请求: method={method}, user={user_id}")
+        app_logger.info(f"MCP 请求: method={method_name}, user={user_id}")
 
         # 根据 method 处理请求
-        if method == "tools/list":
+        if method_name == "tools/list":
+            method_var.set("MCP")
+            uri_var.set("tools/list")
+            status_var.set("200")
             # 返回工具列表
             tools = await mcp.list_tools()
+            access_logger.info("")
             return {
                 "jsonrpc": "2.0",
                 "result": {"tools": tools},
                 "id": request_id
             }
 
-        elif method == "tools/call":
+        elif method_name == "tools/call":
             # 调用工具
             params = mcp_request.get("params", {})
             tool_name = params.get("name")
             arguments = params.get("arguments", {})
-
+            method_var.set("MCP")
+            uri_var.set(tool_name)
+            status_var.set("200")
             result = await mcp.call_tool(tool_name, arguments)
+            access_logger.info("")
             return {
                 "jsonrpc": "2.0",
                 "result": {"content": [{"type": "text", "text": str(result)}]},
                 "id": request_id
             }
 
-        elif method == "initialize":
+        elif method_name == "initialize":
             # 初始化响应
             return {
                 "jsonrpc": "2.0",
@@ -763,12 +800,12 @@ async def handle_mcp_request(request: Request):
                 "id": request_id
             }
 
-        elif method == "notifications/initialized":
+        elif method_name == "notifications/initialized":
             # initialized notification 不需要响应
-            logger.info(f"客户端初始化完成: user={user_id}")
+            app_logger.info(f"客户端初始化完成: user={user_id}")
             return None
 
-        elif method == "ping":
+        elif method_name == "ping":
             # ping 请求
             return {
                 "jsonrpc": "2.0",
@@ -779,21 +816,27 @@ async def handle_mcp_request(request: Request):
         else:
             # 未知方法：notification 不返回错误，request 返回错误
             if request_id is None:
-                logger.warning(f"忽略未知 notification: {method}")
+                app_logger.warning(f"忽略未知 notification: {method_name}")
                 return None
             return {
                 "jsonrpc": "2.0",
-                "error": {"code": -32601, "message": f"Method not found: {method}"},
+                "error": {"code": -32601, "message": f"Method not found: {method_name}"},
                 "id": request_id
             }
 
     except HTTPException as e:
+        status_var.set(str(e.status_code))
+        duration_ms_var.set(str(int((datetime.now() - start_time).total_seconds() * 1000)))
+        access_logger.info("")
         return JSONResponse(
             status_code=e.status_code,
             content={"error": e.detail}
         )
     except Exception as e:
-        logger.error(f"处理 MCP 请求失败: {e}")
+        app_logger.error(f"处理 MCP 请求失败: {e}")
+        status_var.set("500")
+        duration_ms_var.set(str(int((datetime.now() - start_time).total_seconds() * 1000)))
+        access_logger.info("")
         return JSONResponse(
             status_code=500,
             content={"error": f"内部服务器错误: {str(e)}"}

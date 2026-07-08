@@ -5,13 +5,27 @@
 用户编号由调用方（远端 MCP 服务）传递。
 """
 
+import sys
+from pathlib import Path
+
+# Ensure project root is in sys.path so logging_lib is importable
+_project_root = str(Path(__file__).resolve().parent.parent)
+if _project_root not in sys.path:
+    sys.path.insert(0, _project_root)
+
 from fastapi import FastAPI, HTTPException, Header
 from typing import Optional
 from datetime import datetime, timezone
 import json
 import os
 
+from logging_lib import setup_logging, AccessLogMiddleware, user_id_var
+
 app = FastAPI(title="后台 API")
+
+# Setup logging
+app_logger, access_logger = setup_logging("api")
+app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=access_logger)
 
 # 加载模拟用户数据
 DATA_FILE = os.path.join(os.path.dirname(__file__), "users.json")
@@ -48,13 +62,19 @@ async def get_user(user_id: str):
     """
     # 验证用户编号格式
     if not user_id.isdigit() or len(user_id) != 9:
+        app_logger.warning(f"用户编号格式错误: {user_id}")
         raise HTTPException(400, "用户编号必须为9位数字")
+
+    # 设置 MDC 用户上下文
+    user_id_var.set(user_id)
 
     # 查询用户
     user = USERS.get(user_id)
     if not user:
+        app_logger.warning(f"用户不存在: {user_id}")
         raise HTTPException(404, "用户不存在")
 
+    app_logger.info(f"用户信息查询成功: {user_id}")
     return user
 
 
@@ -79,15 +99,21 @@ async def get_all_users(user_id: str):
     """
     # 验证用户编号格式
     if not user_id.isdigit() or len(user_id) != 9:
+        app_logger.warning(f"用户编号格式错误: {user_id}")
         raise HTTPException(400, "用户编号必须为9位数字")
+
+    # 设置 MDC 用户上下文
+    user_id_var.set(user_id)
 
     # 查询调用者
     caller = USERS.get(user_id)
     if not caller:
+        app_logger.warning(f"用户不存在: {user_id}")
         raise HTTPException(404, "用户不存在")
 
     # 检查是否为管理员
     if caller.get("role") != "admin":
+        app_logger.warning(f"非管理员尝试查询用户列表: {user_id}")
         raise HTTPException(403, "需要管理员权限")
 
     # 返回所有用户信息（不含金额）
@@ -100,6 +126,7 @@ async def get_all_users(user_id: str):
             "role": user.get("role")
         })
 
+    app_logger.info(f"管理员查询用户列表成功: user={user_id}, total={len(users_list)}")
     return {
         "total": len(users_list),
         "users": users_list
@@ -152,10 +179,15 @@ async def query_finance_metrics(
     """
     # 1. 验证用户编号
     if not x_user_id or not x_user_id.isdigit() or len(x_user_id) != 9:
+        app_logger.warning(f"用户编号格式错误: {x_user_id}")
         raise HTTPException(400, "用户编号格式错误")
+
+    # 设置 MDC 用户上下文
+    user_id_var.set(x_user_id)
 
     # 2. 白名单验证
     if metric not in ALLOWED_METRICS:
+        app_logger.warning(f"不支持的指标: {metric}, user={x_user_id}")
         raise HTTPException(400, f"不支持的指标: {metric}。请先调用 /api/finance/dictionary 获取支持的指标列表")
 
     # 3. 参数校验
@@ -182,6 +214,11 @@ async def query_finance_metrics(
     )
 
     # 6. 构造返回结果
+    app_logger.info(
+        f"财务指标查询成功: metric={metric}, branch={branch_id}, "
+        f"year={year}, quarter={quarter}, month={month}, granularity={granularity}, "
+        f"data_points={len(data)}"
+    )
     return {
         "metric": metric,
         "metric_name": get_metric_display_name(metric),
@@ -203,4 +240,5 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
+    app_logger.info("启动后台 API 服务, port=8000")
     uvicorn.run(app, host="0.0.0.0", port=8000)

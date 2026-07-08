@@ -1,0 +1,28 @@
+version: "3.8"
+
+services:
+  backend_api:
+    image: bankda-backend:latest
+    build:
+      context: ..
+      dockerfile: deploy/docker/backend_api/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - /home/prdmng/bankda/logs:/app/logs
+    restart: unless-stopped
+
+  mcp_remote:
+    image: bankda-mcp:latest
+    build:
+      context: ..
+      dockerfile: deploy/docker/mcp_remote/Dockerfile
+    ports:
+      - "8001:8001"
+    environment:
+      - BACKEND_API_URL=http://backend_api:8000
+    depends_on:
+      - backend_api
+    volumes:
+      - /home/prdmng/bankda/logs:/app/logs
+    restart: unless-stopped
