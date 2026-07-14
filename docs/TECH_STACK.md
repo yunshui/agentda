@@ -25,7 +25,7 @@
 - **Uvicorn** — ASGI server
 - **Pydantic** — Request validation
 
-### Local Proxy
+### MCP Client
 - **mcp** (Python SDK) — MCP protocol client/server
 - **httpx** — Async HTTP client
 - **anyio** — Async runtime

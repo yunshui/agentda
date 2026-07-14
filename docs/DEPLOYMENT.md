@@ -2,13 +2,13 @@
 
 ## Architecture
 
-Three Docker containers:
+Single container running three services:
 
-| Service | Port | Image | Log Path |
-|---------|------|-------|----------|
-| agent-core | 8000 | bankda-agent-core:latest | /data/logs/agent-core/ |
-| mcp-core | 8001 | bankda-mcp-core:latest | /data/logs/mcp-core/ |
-| api-core | 8002 | bankda-api-core:latest | /data/logs/api-core/ |
+| Service | Port | Log Path |
+|---------|------|----------|
+| agent-core | 8000 | /data/logs/agent-core/ |
+| mcp-core | 8001 | /data/logs/mcp-core/ |
+| api-core | 8002 | /data/logs/api-core/ |
 
 ## Docker Deployment
 
@@ -20,9 +20,7 @@ bash build.sh
 ```
 
 Produces in `deploy/output/`:
-- `bankda-api-core.tar`
-- `bankda-mcp-core.tar`
-- `bankda-agent-core.tar`
+- `agentda.tar`
 - `checksum.md5`
 
 ### Deploy (on air-gapped machine)
@@ -35,16 +33,9 @@ bash deploy.sh
 ### Manual Docker Run
 
 ```bash
-# API Core
-docker run -d --name api-core -p 8002:8002 bankda-api-core:latest
-
-# MCP Core
-docker run -d --name mcp-core -p 8001:8001 \
-  -e BACKEND_API_URL=http://api-core:8002 \
-  bankda-mcp-core:latest
-
-# Agent Core
-docker run -d --name agent-core -p 8000:8000 bankda-agent-core:latest
+docker run -d --name agentda -p 8000:8000 -p 8001:8001 -p 8002:8002 \
+  -e API_CORE_URL=http://localhost:8002 \
+  agentda:latest
 ```
 
 ## Local Development
@@ -59,8 +50,8 @@ cd mcp-core && pip install -r requirements.txt && python main.py
 # Terminal 3: Agent Core (port 8000)
 cd agent-core && pip install -r requirements.txt && python main.py
 
-# Terminal 4: Local Proxy
-cd local_proxy && python main.py
+# Terminal 4: MCP Client
+cd mcp-client && python main.py
 ```
 
 ## Environment Variables
@@ -68,13 +59,13 @@ cd local_proxy && python main.py
 ### MCP Core
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `BACKEND_API_URL` | `http://localhost:8002` | API Core base URL |
+| `API_CORE_URL` | `http://localhost:8002` | API Core base URL |
 | `RSA_PRIVATE_KEY` | (file) | PEM-encoded RSA private key |
 | `RSA_PUBLIC_KEY` | (file) | PEM-encoded RSA public key |
 | `PORT` | `8001` | Service port |
 | `EXPECTED_TOKEN` | `prototype-token` | Legacy auth token |
 
-### Local Proxy
+### MCP Client
 | Variable | Default | Description |
 |----------|---------|-------------|
 | `REMOTE_MCP_URL` | `http://localhost:8001` | MCP Core URL |

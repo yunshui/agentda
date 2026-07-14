@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Bankda is a financial data query system built on the Model Context Protocol (MCP). It consists of three services plus a local proxy:
+Agentda is a financial data query system built on the Model Context Protocol (MCP). It consists of three services plus an MCP client:
 
 - **agent-core** (port 8000) — Client event/action reporting endpoint
 - **mcp-core** (port 8001) — MCP remote service with RSA-encrypted token authentication
@@ -120,8 +120,8 @@ cd mcp-core && pip install -r requirements.txt && python main.py
 # API Core (port 8002)
 cd api-core && pip install -r requirements.txt && python main.py
 
-# Local Proxy (connects to MCP Core on port 8001)
-cd local_proxy && python main.py
+# MCP Client (connects to MCP Core on port 8001)
+cd mcp-client && python main.py
 ```
 
 ## Token Management

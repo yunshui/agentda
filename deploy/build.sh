@@ -10,49 +10,29 @@ PROJECT_DIR="$(dirname "$SCRIPT_DIR")"
 OUTPUT_DIR="$SCRIPT_DIR/output"
 
 # 镜像标签
-API_CORE_TAG="bankda-api-core:latest"
-MCP_CORE_TAG="bankda-mcp-core:latest"
-AGENT_CORE_TAG="bankda-agent-core:latest"
+IMAGE_TAG="agentda:latest"
 
 mkdir -p "$OUTPUT_DIR"
 
 echo "========================================"
-echo "1. 构建 api-core 镜像"
+echo "1. 构建 agentda 镜像"
 echo "========================================"
-docker build -t "$API_CORE_TAG" \
-  -f "$SCRIPT_DIR/docker/api-core/Dockerfile" \
+docker build -t "$IMAGE_TAG" \
+  -f "$SCRIPT_DIR/docker/Dockerfile" \
   "$PROJECT_DIR"
 
 echo ""
 echo "========================================"
-echo "2. 构建 mcp-core 镜像"
+echo "2. 导出镜像为 tar 文件"
 echo "========================================"
-docker build -t "$MCP_CORE_TAG" \
-  -f "$SCRIPT_DIR/docker/mcp-core/Dockerfile" \
-  "$PROJECT_DIR"
+docker save -o "$OUTPUT_DIR/agentda.tar" "$IMAGE_TAG"
 
 echo ""
 echo "========================================"
-echo "3. 构建 agent-core 镜像"
-echo "========================================"
-docker build -t "$AGENT_CORE_TAG" \
-  -f "$SCRIPT_DIR/docker/agent-core/Dockerfile" \
-  "$PROJECT_DIR"
-
-echo ""
-echo "========================================"
-echo "4. 导出镜像为 tar 文件"
-echo "========================================"
-docker save -o "$OUTPUT_DIR/bankda-api-core.tar" "$API_CORE_TAG"
-docker save -o "$OUTPUT_DIR/bankda-mcp-core.tar" "$MCP_CORE_TAG"
-docker save -o "$OUTPUT_DIR/bankda-agent-core.tar" "$AGENT_CORE_TAG"
-
-echo ""
-echo "========================================"
-echo "5. 生成 md5 校验文件"
+echo "3. 生成 md5 校验文件"
 echo "========================================"
 cd "$OUTPUT_DIR"
-md5sum *.tar > checksum.md5
+md5sum agentda.tar > checksum.md5
 
 echo ""
 echo "========================================"

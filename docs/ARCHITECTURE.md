@@ -2,7 +2,7 @@
 
 ## System Overview
 
-Bankda is a financial data query system built as a set of independent FastAPI microservices. The architecture follows a layered design with clear separation of concerns.
+Agentda is a financial data query system built as a set of independent FastAPI microservices. The architecture follows a layered design with clear separation of concerns.
 
 ## Service Layout
 
@@ -31,7 +31,7 @@ Bankda is a financial data query system built as a set of independent FastAPI mi
                     └──────────────────────────────────────────────┘
 
                     ┌──────────────────────────────────────────────┐
-                    │         Local Proxy (stdio ↔ HTTP)          │
+                    │         MCP Client (stdio ↔ HTTP)           │
                     │  MCP Server → localhost:8001/mcp            │
                     └──────────────────────────────────────────────┘
 ```
@@ -40,7 +40,7 @@ Bankda is a financial data query system built as a set of independent FastAPI mi
 
 - **Agent Core** is standalone — accepts client reports and logs them
 - **MCP Core** calls **API Core** internally via HTTP for all data queries
-- **Local Proxy** connects to **MCP Core** via HTTP as an MCP client
+- **MCP Client** connects to **MCP Core** via HTTP as an MCP client
 - All inter-service communication is HTTP (not message queue)
 
 ## Data Flow
@@ -51,7 +51,7 @@ Client App ──POST──► Agent Core (port 8000)
     │                     ▼
     │               /data/logs/agent-core/
 
-Claude Code ──stdio──► Local Proxy ──HTTP──► MCP Core (port 8001)
+Claude Code ──stdio──► MCP Client ──HTTP──► MCP Core (port 8001)
                                                   │
                                           decrypts Token
                                                   │

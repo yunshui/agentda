@@ -28,7 +28,7 @@ curl -X POST http://localhost:8000/agent/report \
     "client_ip": "192.168.1.100",
     "mac_address": "00:1A:2B:3C:4D:5E",
     "os_version": "Windows 10",
-    "app_name": "BankdaClient",
+    "app_name": "AgentdaClient",
     "app_version": "1.0.0",
     "screen_resolution": "1920x1080",
     "event_type": "action",

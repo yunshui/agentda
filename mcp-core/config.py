@@ -3,7 +3,7 @@
 import os
 
 # 后台 API 地址
-BACKEND_API_URL = os.environ.get("BACKEND_API_URL", "http://localhost:8002")
+API_CORE_URL = os.environ.get("API_CORE_URL", "http://localhost:8002")
 
 # 预期的 Token
 EXPECTED_TOKEN = os.environ.get("EXPECTED_TOKEN", "prototype-token")

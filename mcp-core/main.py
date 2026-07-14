@@ -100,7 +100,7 @@ def secure_api_call(func):
     return wrapper
 
 # 配置
-BACKEND_API_URL = os.environ.get("BACKEND_API_URL", "http://localhost:8002")
+API_CORE_URL = os.environ.get("API_CORE_URL", "http://localhost:8002")
 
 # RSA 密钥（从环境变量读取）
 def load_rsa_keys():
@@ -483,7 +483,7 @@ async def get_my_info() -> dict:
     user_id = current_user_id.get()
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BACKEND_API_URL}/api/user/{user_id}")
+        response = await client.get(f"{API_CORE_URL}/api/user/{user_id}")
         response.raise_for_status()
         return response.json()
 
@@ -507,7 +507,7 @@ async def get_my_department() -> dict:
     user_id = current_user_id.get()
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BACKEND_API_URL}/api/user/{user_id}")
+        response = await client.get(f"{API_CORE_URL}/api/user/{user_id}")
         response.raise_for_status()
         user_data = response.json()
         # 过滤只返回部门相关信息
@@ -537,7 +537,7 @@ async def get_my_balance() -> dict:
     user_id = current_user_id.get()
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BACKEND_API_URL}/api/user/{user_id}")
+        response = await client.get(f"{API_CORE_URL}/api/user/{user_id}")
         response.raise_for_status()
         user_data = response.json()
         # 过滤只返回余额相关信息
@@ -571,7 +571,7 @@ async def check_my_permission() -> dict:
     user_id = current_user_id.get()
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BACKEND_API_URL}/api/user/{user_id}")
+        response = await client.get(f"{API_CORE_URL}/api/user/{user_id}")
         response.raise_for_status()
         user_data = response.json()
         # 过滤只返回权限相关信息
@@ -608,7 +608,7 @@ async def list_all_users() -> dict:
     user_id = current_user_id.get()
 
     async with httpx.AsyncClient() as client:
-        response = await client.get(f"{BACKEND_API_URL}/api/admin/{user_id}/users")
+        response = await client.get(f"{API_CORE_URL}/api/admin/{user_id}/users")
         if response.status_code >= 400:
             return response.json()
         return response.json()
@@ -646,7 +646,7 @@ async def get_finance_dictionary() -> dict:
 
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"{BACKEND_API_URL}/api/finance/dictionary",
+            f"{API_CORE_URL}/api/finance/dictionary",
             headers={"X-User-ID": user_id}
         )
         response.raise_for_status()
@@ -717,7 +717,7 @@ async def query_financial_metrics(
 
     async with httpx.AsyncClient() as client:
         response = await client.get(
-            f"{BACKEND_API_URL}/api/finance/query",
+            f"{API_CORE_URL}/api/finance/query",
             params=params,
             headers={"X-User-ID": user_id}
         )

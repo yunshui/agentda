@@ -1,4 +1,4 @@
-# Bankda 离线 Docker 部署指南
+# Agentda 离线 Docker 部署指南
 
 适用于 **Kylin Linux Advanced Server V10 (Halberd)** x86_64 内网环境，Python 3.12。
 
@@ -30,12 +30,12 @@ sudo systemctl start docker
 ### 1.2 执行构建脚本
 
 ```bash
-cd bankda/deploy
+cd agentda/deploy
 bash build.sh
 ```
 
 脚本会自动完成：
-- 构建 `bankda-api-core:latest`、`bankda-mcp-core:latest`、`bankda-agent-core:latest` 三个镜像
+- 构建 `agentda:latest` 单个镜像
 - 导出为 tar 文件到 `deploy/output/` 目录
 - 生成 MD5 校验文件
 
@@ -43,10 +43,8 @@ bash build.sh
 
 ```
 deploy/output/
-├── bankda-api-core.tar       # API Core 镜像
-├── bankda-mcp-core.tar       # MCP Core 镜像
-├── bankda-agent-core.tar     # Agent Core 镜像
-└── checksum.md5              # 完整性校验文件
+├── agentda.tar              # 整合镜像（含 api-core、mcp-core、agent-core 三个服务）
+└── checksum.md5             # 完整性校验文件
 ```
 
 > **注意**：如果内网无法访问 `pypi.tuna.tsinghua.edu.cn`，修改 Dockerfile 中的 `-i` 参数，换成可用的 PyPI 镜像源。
@@ -57,7 +55,7 @@ deploy/output/
 
 将 `deploy/output/` 目录下的所有文件通过 U 盘或内部文件服务器拷贝到 Kylin 内网机器上。
 
-建议存放路径：`/opt/bankda/output/`
+建议存放路径：`/opt/agentda/output/`
 
 ---
 
@@ -114,19 +112,17 @@ docker compose version  # 确认 docker compose 插件可用
 将 `deploy/` 目录完整拷贝到 Kylin 机器，或手动创建以下结构：
 
 ```
-/path/to/bankda/deploy/
+/path/to/agentda/deploy/
 ├── deploy.sh              # 部署脚本
 ├── output/
-│   ├── bankda-api-core.tar
-│   ├── bankda-mcp-core.tar
-│   ├── bankda-agent-core.tar
+│   ├── agentda.tar
 │   └── checksum.md5
 ```
 
 ### 4.2 执行部署
 
 ```bash
-cd /path/to/bankda/deploy
+cd /path/to/agentda/deploy
 bash deploy.sh
 ```
 
@@ -178,7 +174,7 @@ cat tools/refresh_token.txt
 ```json
 {
   "mcpServers": {
-    "bankda-finance": {
+    "agentda-finance": {
       "url": "http://<kylin-ip>:8001/mcp",
       "env": {
         "MCP_REFRESH_TOKEN": "<从 refresh_token.txt 获取的完整值>"
@@ -197,13 +193,8 @@ cat tools/refresh_token.txt
 
 ```bash
 # 查看实时日志
-cd /path/to/bankda/deploy
+cd /path/to/agentda/deploy
 docker compose logs -f
-
-# 查看特定服务日志
-docker compose logs -f api-core
-docker compose logs -f mcp-core
-docker compose logs -f agent-core
 
 # 重启服务
 docker compose restart
@@ -212,13 +203,11 @@ docker compose restart
 docker compose down
 
 # 更新镜像（当获取到新 tar 包时）
-docker load -i output/bankda-api-core.tar
-docker load -i output/bankda-mcp-core.tar
-docker load -i output/bankda-agent-core.tar
+docker load -i output/agentda.tar
 docker compose up -d
 
 # 进入容器内部调试
-docker exec -it bankda-deploy_api-core_1 sh
+docker exec -it agentda-deploy_agentda_1 sh
 ```
 
 ---
@@ -242,6 +231,8 @@ docker-compose up -d
 ```yaml
 ports:
   - "18000:8000"   # 将宿主机 18000 映射到容器 8000
+  - "18001:8001"   # 将宿主机 18001 映射到容器 8001
+  - "18002:8002"   # 将宿主机 18002 映射到容器 8002
 ```
 
 ### Q: 容器启动后立即退出
@@ -258,7 +249,7 @@ docker compose logs
 如果使用内网 PyPI 镜像，修改 Dockerfile 中的 pip 参数：
 
 ```dockerfile
-RUN pip install --no-cache-dir -r requirements.txt -i http://<内网镜像地址>/simple --trusted-host <内网镜像地址>
+RUN pip install --no-cache-dir -r requirements.in -i http://<内网镜像地址>/simple --trusted-host <内网镜像地址>
 ```
 
 ---
@@ -271,8 +262,8 @@ deploy/
 ├── build.sh                        # [有网] 构建镜像并导出 tar
 ├── deploy.sh                       # [内网] 导入 tar 并启动服务
 ├── docker-compose.yml              # 容器编排配置
+├── requirements.in                 # 合并后的 Python 依赖
 └── docker/
-    ├── api-core/Dockerfile         # API Core 镜像构建文件
-    ├── mcp-core/Dockerfile         # MCP Core 镜像构建文件
-    └── agent-core/Dockerfile       # Agent Core 镜像构建文件
+    ├── Dockerfile                  # 整合镜像构建文件（含 api-core、mcp-core、agent-core）
+    └── entrypoint.sh               # 多服务启动脚本
 ```

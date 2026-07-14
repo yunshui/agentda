@@ -75,5 +75,12 @@
     "refresh_expires_at": "2026-07-09T10:46:03Z",
     "issued_at": "2026-07-02T10:46:03Z",
     "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "XeYja99hIAInHZbyaHsTSQ",
+    "refresh_expires_at": "2026-08-13T02:44:50Z",
+    "issued_at": "2026-07-14T02:44:50Z",
+    "status": "active"
   }
 ]

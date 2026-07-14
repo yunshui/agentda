@@ -1,21 +1,21 @@
 """
-MCP 协议透传代理
+MCP Client — MCP 协议客户端代理
 
-本地代理作为 MCP Server 实现：
+本地客户端作为 MCP Server 实现：
 - 接收 Claude Code 的 MCP 请求 (Stdio)
 - 使用 Server 实例处理 MCP 协议握手
 - 在每个请求中自动注入加密 Token
-- 通过 HTTPS 转发到远端 MCP 服务
+- 通过 HTTPS 转发到远端 MCP Core 服务
 - 返回远端服务的响应
 
 关键特性：
-- Tools 定义在远端服务，本地代理通过 HTTP 获取
-- 用户身份封装在加密 Token 中，本地代理无法查看
+- Tools 定义在远端服务，本地客户端通过 HTTP 获取
+- 用户身份封装在加密 Token 中，本地客户端无法查看
 - 使用 Refresh Token 自动获取 Access Token
 - Access Token 过期时自动刷新
 
 安全设计：
-- 本地代理只知道 Refresh Token，不知道用户身份
+- MCP 客户端只知道 Refresh Token，不知道用户身份
 - Access Token 15 分钟有效，自动刷新
 - 用户身份由远端服务从 Token 解密获取
 """

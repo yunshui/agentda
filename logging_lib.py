@@ -1,5 +1,5 @@
 """
-Shared logging utilities for Bankda services.
+Shared logging utilities for Agentda services.
 
 Provides per-request MDC context via ContextVars, daily rotating file handlers,
 custom formatting, and an ASGI middleware for automatic access logging.

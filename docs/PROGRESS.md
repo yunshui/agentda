@@ -13,7 +13,7 @@
 - [x] Access Token (15min) and Refresh Token (7d)
 - [x] Token refresh endpoint
 - [x] Token revocation with JSON blacklist
-- [x] Local proxy with automatic token refresh
+- [x] MCP client with automatic token refresh
 
 ## Phase 3: MCP Integration ✓
 - [x] FastMCP server setup

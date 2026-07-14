@@ -8,12 +8,10 @@ set -euo pipefail
 SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
 IMAGE_DIR="$SCRIPT_DIR/output"
 
-if [ ! -f "$IMAGE_DIR/bankda-api-core.tar" ] || [ ! -f "$IMAGE_DIR/bankda-mcp-core.tar" ] || [ ! -f "$IMAGE_DIR/bankda-agent-core.tar" ]; then
+if [ ! -f "$IMAGE_DIR/agentda.tar" ]; then
   echo "错误: 未找到镜像 tar 文件，请先将 output/ 目录拷贝到本机。"
   echo "预期文件:"
-  echo "  $IMAGE_DIR/bankda-api-core.tar"
-  echo "  $IMAGE_DIR/bankda-mcp-core.tar"
-  echo "  $IMAGE_DIR/bankda-agent-core.tar"
+  echo "  $IMAGE_DIR/agentda.tar"
   exit 1
 fi
 
@@ -36,9 +34,7 @@ echo ""
 echo "========================================"
 echo "2. 导入 Docker 镜像"
 echo "========================================"
-docker load -i "$IMAGE_DIR/bankda-api-core.tar"
-docker load -i "$IMAGE_DIR/bankda-mcp-core.tar"
-docker load -i "$IMAGE_DIR/bankda-agent-core.tar"
+docker load -i "$IMAGE_DIR/agentda.tar"
 
 echo ""
 echo "========================================"
@@ -48,32 +44,16 @@ cat > "$SCRIPT_DIR/docker-compose.yml" << 'COMPOSE_EOF'
 version: "3.8"
 
 services:
-  api-core:
-    image: bankda-api-core:latest
-    ports:
-      - "8002:8002"
-    volumes:
-      - /home/prdmng/bankda/logs/api-core:/data/logs/api-core
-    restart: unless-stopped
-
-  mcp-core:
-    image: bankda-mcp-core:latest
-    ports:
-      - "8001:8001"
-    environment:
-      - BACKEND_API_URL=http://api-core:8002
-    depends_on:
-      - api-core
-    volumes:
-      - /home/prdmng/bankda/logs/mcp-core:/data/logs/mcp-core
-    restart: unless-stopped
-
-  agent-core:
-    image: bankda-agent-core:latest
+  agentda:
+    image: agentda:latest
     ports:
       - "8000:8000"
+      - "8001:8001"
+      - "8002:8002"
     volumes:
-      - /home/prdmng/bankda/logs/agent-core:/data/logs/agent-core
+      - /home/prdmng/agentda/logs:/data/logs
+    environment:
+      - API_CORE_URL=http://localhost:8002
     restart: unless-stopped
 COMPOSE_EOF
 
