@@ -8,10 +8,12 @@
 import sys
 from pathlib import Path
 
-# Ensure project root is in sys.path so logging_lib is importable
+# Ensure project root and service directory are in sys.path
 _project_root = str(Path(__file__).resolve().parent.parent)
-if _project_root not in sys.path:
-    sys.path.insert(0, _project_root)
+_service_dir = str(Path(__file__).resolve().parent)
+for _p in [_project_root, _service_dir]:
+    if _p not in sys.path:
+        sys.path.insert(0, _p)
 
 from fastapi import FastAPI, HTTPException, Header
 from typing import Optional
@@ -33,7 +35,7 @@ with open(DATA_FILE, encoding="utf-8") as f:
     USERS = json.load(f)
 
 # 导入财务配置
-from config.dictionary import (
+from dictionary import (
     FINANCE_DICTIONARY,
     ALLOWED_METRICS,
     USER_BRANCH_MAPPING,
