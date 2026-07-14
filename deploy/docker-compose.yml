@@ -1,28 +1,39 @@
 version: "3.8"
 
 services:
-  backend_api:
-    image: bankda-backend:latest
+  api-core:
+    image: bankda-api-core:latest
     build:
       context: ..
-      dockerfile: deploy/docker/backend_api/Dockerfile
+      dockerfile: deploy/docker/api-core/Dockerfile
     ports:
-      - "8000:8000"
+      - "8002:8002"
     volumes:
-      - /home/prdmng/bankda/logs:/app/logs
+      - /home/prdmng/bankda/logs/api-core:/data/logs/api-core
     restart: unless-stopped
 
-  mcp_remote:
-    image: bankda-mcp:latest
+  mcp-core:
+    image: bankda-mcp-core:latest
     build:
       context: ..
-      dockerfile: deploy/docker/mcp_remote/Dockerfile
+      dockerfile: deploy/docker/mcp-core/Dockerfile
     ports:
       - "8001:8001"
     environment:
-      - BACKEND_API_URL=http://backend_api:8000
+      - BACKEND_API_URL=http://api-core:8002
     depends_on:
-      - backend_api
+      - api-core
     volumes:
-      - /home/prdmng/bankda/logs:/app/logs
+      - /home/prdmng/bankda/logs/mcp-core:/data/logs/mcp-core
+    restart: unless-stopped
+
+  agent-core:
+    image: bankda-agent-core:latest
+    build:
+      context: ..
+      dockerfile: deploy/docker/agent-core/Dockerfile
+    ports:
+      - "8000:8000"
+    volumes:
+      - /home/prdmng/bankda/logs/agent-core:/data/logs/agent-core
     restart: unless-stopped

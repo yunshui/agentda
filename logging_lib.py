@@ -26,8 +26,6 @@ duration_ms_var: ContextVar[str] = ContextVar("duration_ms", default="-")
 
 # ==================== Configuration ====================
 
-LOG_DIR = "logs"
-
 LOG_FORMAT = (
     "%(asctime)s|%(levelname)-5s|%(name)-36s|"
     "%(clientIp)s|%(UserID)s|%(traceId)s|"
@@ -78,21 +76,22 @@ class DailyRotatingFileHandler(logging.Handler):
     becomes "api-2026-07-08.log". The logs directory is created automatically.
     """
 
-    def __init__(self, filename_pattern, mode="a", encoding="utf-8"):
+    def __init__(self, filename_pattern, mode="a", encoding="utf-8", log_dir="logs"):
         super().__init__()
         self.filename_pattern = filename_pattern
         self.mode = mode
         self.encoding = encoding
+        self.log_dir = log_dir
         self._file = None
         self._current_date = None
-        os.makedirs(LOG_DIR, exist_ok=True)
+        os.makedirs(self.log_dir, exist_ok=True)
         self._rotate()
 
     def _get_date_str(self):
         return datetime.now().strftime("%Y-%m-%d")
 
     def _get_filename(self):
-        return os.path.join(LOG_DIR, self.filename_pattern.format(date=self._get_date_str()))
+        return os.path.join(self.log_dir, self.filename_pattern.format(date=self._get_date_str()))
 
     def _rotate(self):
         if self._file:
@@ -141,22 +140,27 @@ class MDCFilter(logging.Filter):
 
 # ==================== setup_logging ====================
 
-def setup_logging(service_name: str):
+def setup_logging(service_name: str, log_dir: str = "logs", access_log_name: str = None):
     """
     Create and configure application + access loggers.
 
     Args:
         service_name: Short name for the service (e.g. "api", "mcp").
+        log_dir: Directory for log files (default "logs").
+        access_log_name: Name for the access log file (default f"{service_name}-access").
 
     Returns:
         Tuple of (app_logger, access_logger).
     """
+    if access_log_name is None:
+        access_log_name = f"{service_name}-access"
+
     # --- Application logger ---
     app_logger = logging.getLogger(service_name)
     app_logger.setLevel(logging.INFO)
     app_logger.handlers.clear()
 
-    app_file_handler = DailyRotatingFileHandler(f"{service_name}-{{date}}.log")
+    app_file_handler = DailyRotatingFileHandler(f"{service_name}-{{date}}.log", log_dir=log_dir)
     app_file_handler.setFormatter(AppFormatter(LOG_FORMAT))
     app_file_handler.addFilter(MDCFilter())
     app_logger.addHandler(app_file_handler)
@@ -172,7 +176,7 @@ def setup_logging(service_name: str):
     access_logger.handlers.clear()
     access_logger.propagate = False
 
-    access_handler = DailyRotatingFileHandler(f"{service_name}-access-{{date}}.log")
+    access_handler = DailyRotatingFileHandler(f"{access_log_name}-{{date}}.log", log_dir=log_dir)
     access_handler.setFormatter(AppFormatter(LOG_FORMAT))
     access_handler.addFilter(MDCFilter())
     access_logger.addHandler(access_handler)
@@ -192,14 +196,15 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
     - Skips ``/mcp`` endpoints (MCP handler manages its own access logging)
     """
 
-    def __init__(self, app, app_logger=None, access_logger=None):
+    def __init__(self, app, app_logger=None, access_logger=None, skip_path_prefix="/mcp"):
         super().__init__(app)
         self.app_logger = app_logger
         self.access_logger = access_logger
+        self.skip_path_prefix = skip_path_prefix
 
     async def dispatch(self, request: Request, call_next):
-        # MCP handler manages its own access logging at tool-name granularity
-        if request.url.path.startswith("/mcp"):
+        # Skip paths matching the configured prefix (MCP handler manages its own access logging)
+        if self.skip_path_prefix and request.url.path.startswith(self.skip_path_prefix):
             return await call_next(request)
 
         trace_id = uuid.uuid4().hex[:8]

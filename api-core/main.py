@@ -24,8 +24,8 @@ from logging_lib import setup_logging, AccessLogMiddleware, user_id_var
 app = FastAPI(title="后台 API")
 
 # Setup logging
-app_logger, access_logger = setup_logging("api")
-app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=access_logger)
+app_logger, access_logger = setup_logging("api-core", access_log_name="api-acc", log_dir="/data/logs/api-core")
+app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=access_logger, skip_path_prefix="/api")
 
 # 加载模拟用户数据
 DATA_FILE = os.path.join(os.path.dirname(__file__), "users.json")
@@ -232,7 +232,7 @@ async def query_finance_metrics(
 
 # ==================== 健康检查 ====================
 
-@app.get("/health")
+@app.get("/api/health")
 async def health():
     """健康检查"""
     return {"status": "ok"}
@@ -240,5 +240,5 @@ async def health():
 
 if __name__ == "__main__":
     import uvicorn
-    app_logger.info("启动后台 API 服务, port=8000")
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    app_logger.info("启动后台 API 服务, port=8002")
+    uvicorn.run(app, host="0.0.0.0", port=8002)

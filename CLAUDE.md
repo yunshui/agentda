@@ -4,14 +4,19 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Bankda is a financial data query system built on the Model Context Protocol (MCP). It consists of a backend API (FastAPI) and a remote MCP service that wraps the backend as MCP tools, with RSA-encrypted token authentication (Access Token + Refresh Token).
+Bankda is a financial data query system built on the Model Context Protocol (MCP). It consists of three services plus a local proxy:
+
+- **agent-core** (port 8000) — Client event/action reporting endpoint
+- **mcp-core** (port 8001) — MCP remote service with RSA-encrypted token authentication
+- **api-core** (port 8002) — Internal REST API providing user info and financial metric queries
 
 ## Architecture
 
-Two independent FastAPI services:
+Three independent FastAPI services:
 
-- **`backend_api/`** (port 8000) — Internal REST API providing user info and financial metric queries with simulated data
-- **`mcp_remote/`** (port 8001) — MCP remote service that authenticates requests via RSA-encrypted tokens and proxies to the backend API
+- **`agent-core/`** (port 8000) — Receives and logs client event reports via `POST /agent/report`
+- **`mcp-core/`** (port 8001) — MCP remote service that authenticates requests via RSA-encrypted tokens and proxies to api-core
+- **`api-core/`** (port 8002) — Internal REST API providing user info and financial metric queries with simulated data
 
 Key security design:
 - Whitelist-based metric validation (only predefined metrics are queryable)
@@ -23,14 +28,18 @@ Key security design:
 ## File Structure
 
 ```
-backend_api/
+agent-core/
+  main.py              — FastAPI app with POST /agent/report endpoint
+  requirements.txt
+
+api-core/
   main.py              — FastAPI app with user/finance endpoints
   config/
     dictionary.py      — Financial metrics dictionary, simulated data, RLS mapping
   users.json           — Mock user data (5 users, admin/viewer roles)
   requirements.txt
 
-mcp_remote/
+mcp-core/
   main.py              — MCP service: token auth, /mcp endpoint, MCP tool definitions
   config.py            — Environment-based configuration
   requirements.txt
@@ -41,9 +50,18 @@ tools/
   public_key.pem       — RSA public key
   refresh_token.txt    — Refresh token for local development
   token_records.json   — Token issuance records
+
+deploy/
+  docker-compose.yml   — Container orchestration
+  build.sh             — Build Docker images and export tar
+  deploy.sh            — Import tar and start services on air-gapped machine
+  docker/
+    api-core/Dockerfile
+    mcp-core/Dockerfile
+    agent-core/Dockerfile
 ```
 
-## Key MCP Tools (defined in mcp_remote/main.py)
+## Key MCP Tools (defined in mcp-core/main.py)
 
 | Tool | Description |
 |------|-------------|
@@ -57,14 +75,53 @@ tools/
 
 All tools automatically inject the authenticated user's ID — no user_id parameter is accepted from the caller.
 
+## API Endpoints
+
+### Agent Core (port 8000)
+| Path | Method | Description |
+|------|--------|-------------|
+| `/agent/report` | POST | Submit client event/action report |
+| `/agent/health` | GET | Health check |
+
+### MCP Core (port 8001)
+| Path | Method | Description |
+|------|--------|-------------|
+| `/mcp` | POST | MCP JSON-RPC endpoint |
+| `/mcp/auth/refresh` | POST | Exchange refresh token for access token |
+| `/mcp/auth/revoke` | POST | Revoke a refresh token |
+| `/mcp/health` | GET | Health check |
+
+### API Core (port 8002)
+| Path | Method | Description |
+|------|--------|-------------|
+| `/api/user/{user_id}` | GET | Get user info |
+| `/api/admin/{user_id}/users` | GET | List all users (admin only) |
+| `/api/finance/dictionary` | GET | Financial metrics metadata |
+| `/api/finance/query` | GET | Query financial data |
+| `/api/health` | GET | Health check |
+
+## Log Paths
+
+| Service | Log Directory | App Log | Access Log |
+|---------|--------------|---------|------------|
+| agent-core | /data/logs/agent-core/ | agent-core-{date}.log | agent-acc-{date}.log |
+| mcp-core | /data/logs/mcp-core/ | mcp-core-{date}.log | mcp-acc-{date}.log |
+| api-core | /data/logs/api-core/ | api-core-{date}.log | api-acc-{date}.log |
+
 ## Running the Services
 
 ```bash
-# Backend API (port 8000)
-cd backend_api && pip install -r requirements.txt && python main.py
+# Agent Core (port 8000)
+cd agent-core && pip install -r requirements.txt && python main.py
 
-# MCP Remote (port 8001)
-cd mcp_remote && pip install -r requirements.txt && python main.py
+# MCP Core (port 8001)
+cd mcp-core && pip install -r requirements.txt && python main.py
+
+# API Core (port 8002)
+cd api-core && pip install -r requirements.txt && python main.py
+
+# Local Proxy (connects to MCP Core on port 8001)
+cd local_proxy && python main.py
 ```
 
 ## Token Management

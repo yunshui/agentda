@@ -59,7 +59,7 @@ except ImportError:
     sys.exit(1)
 
 # 配置日志
-app_logger, access_logger = setup_logging("mcp")
+app_logger, access_logger = setup_logging("mcp-core", access_log_name="mcp-acc", log_dir="/data/logs/mcp-core")
 
 # 当前用户上下文（每个请求独立）
 current_user_id: ContextVar[str] = ContextVar("current_user_id")
@@ -100,7 +100,7 @@ def secure_api_call(func):
     return wrapper
 
 # 配置
-BACKEND_API_URL = os.environ.get("BACKEND_API_URL", "http://localhost:8000")
+BACKEND_API_URL = os.environ.get("BACKEND_API_URL", "http://localhost:8002")
 
 # RSA 密钥（从环境变量读取）
 def load_rsa_keys():
@@ -326,7 +326,7 @@ def generate_access_token(user_id: str) -> str:
 
 # ==================== 认证端点 ====================
 
-@app.post("/auth/refresh")
+@app.post("/mcp/auth/refresh")
 async def refresh_token(request: Request):
     """
     使用 Refresh Token 获取新的 Access Token
@@ -377,7 +377,7 @@ async def refresh_token(request: Request):
         raise HTTPException(500, "刷新失败")
 
 
-@app.post("/auth/revoke")
+@app.post("/mcp/auth/revoke")
 async def revoke_token(request: Request):
     """
     吊销 Refresh Token
@@ -843,7 +843,7 @@ async def handle_mcp_request(request: Request):
         )
 
 
-@app.get("/health")
+@app.get("/mcp/health")
 async def health():
     """健康检查"""
     return {"status": "ok"}
