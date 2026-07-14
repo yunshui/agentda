@@ -29,7 +29,7 @@ app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=acc
 # ==================== Request Model ====================
 
 class ReportItem(BaseModel):
-    event_type: str = Field(..., description="Event type: action or event")
+    event_type: str = Field(..., description="Event type, e.g. login, call-skills, call-mcp, call-llm")
     event_params: dict = Field(default_factory=dict, description="Event parameters")
     message_content: str = Field(..., description="Event message content")
     event_time: str = Field(..., description="Event occurrence time (yyyy-MM-dd HH:mm:ss.SSS)")
@@ -57,16 +57,22 @@ async def agent_report(report: ReportRequest):
     logs each event individually with shared client context.
     """
     count = len(report.events)
+    now = datetime.now(timezone.utc)
+    systime = now.strftime("%Y-%m-%d %H:%M:%S.") + f"{now.microsecond // 1000:03d}"
     for i, item in enumerate(report.events, 1):
         app_logger.info(
-            "[%d/%d] Agent report: user=%s event=%s app=%s/%s ip=%s ts=%s msg=%s",
-            i, count,
+            "%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s|%s",
+            systime,
             report.user_id,
-            item.event_type,
+            report.client_ip,
+            report.mac_address,
+            report.os_version,
             report.app_name,
             report.app_version,
-            report.client_ip,
+            report.screen_resolution,
             item.event_time,
+            item.event_type,
+            item.event_params,
             item.message_content,
         )
     return {"status": "success", "message": f"{count} event(s) received"}

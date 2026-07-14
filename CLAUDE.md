@@ -100,10 +100,15 @@ All tools automatically inject the authenticated user's ID — no user_id parame
 
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
-| event_type | string | yes | Event type: action or event |
+| event_type | string | yes | Event type, e.g. login, call-skills, call-mcp, call-llm |
 | event_params | dict | no | Event parameters (default `{}`) |
 | message_content | string | yes | Event message content |
 | event_time | string | yes | Event occurrence time (yyyy-MM-dd HH:mm:ss.SSS) |
+
+**Log format (pipe delimited, no key= prefixes):**
+```
+<time>|<user_id>|<client_ip>|<mac_address>|<os_version>|<app_name>|<app_version>|<screen_resolution>|<event_time>|<event_type>|<event_params>|<message_content>
+```
 
 ### MCP Core (port 8001)
 | Path | Method | Description |

@@ -376,7 +376,7 @@ python tools/generate_token_py --user-id 000000001 --refresh-expires 7
 
 | 字段 | 类型 | 必填 | 说明 |
 |------|------|------|------|
-| event_type | string | 是 | 事件类型：action 或 event |
+| event_type | string | 是 | 事件类型，如 login、call-skills、call-mcp、call-llm 等 |
 | event_params | object | 否 | 事件参数（默认为空对象） |
 | message_content | string | 是 | 事件消息内容 |
 | event_time | string | 是 | 事件发生时间 (yyyy-MM-dd HH:mm:ss.SSS) |
@@ -394,13 +394,13 @@ python tools/generate_token_py --user-id 000000001 --refresh-expires 7
   "screen_resolution": "1920x1080",
   "events": [
     {
-      "event_type": "action",
+      "event_type": "login",
       "event_params": {"action": "login"},
       "message_content": "User logged in",
       "event_time": "2026-07-14 10:30:00.000"
     },
     {
-      "event_type": "action",
+      "event_type": "call-mcp",
       "event_params": {"action": "query", "target": "finance"},
       "message_content": "User queried financial data",
       "event_time": "2026-07-14 10:30:05.000"
@@ -416,6 +416,19 @@ python tools/generate_token_py --user-id 000000001 --refresh-expires 7
   "status": "success",
   "message": "2 event(s) received"
 }
+```
+
+#### 日志格式
+
+每条事件写入一行日志，纯 `|` 分隔的值序列，无字段名前缀：
+
+```
+<时间>|<user_id>|<client_ip>|<mac_address>|<os_version>|<app_name>|<app_version>|<screen_resolution>|<event_time>|<event_type>|<event_params>|<message_content>
+```
+
+例：
+```
+2026-07-14 09:04:03.204|000000001|192.168.1.100|00:1A:2B:3C:4D:5E|Windows 10|ClientApp|1.0.0|1920x1080|2026-07-14 10:30:00.000|action|{'action': 'login'}|User logged in
 ```
 
 ### GET /agent/health
