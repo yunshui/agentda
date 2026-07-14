@@ -193,19 +193,15 @@ class AccessLogMiddleware(BaseHTTPMiddleware):
     - Generates an 8-char hex traceId for each request
     - Captures client IP, HTTP method, URI path
     - Records response status and duration (ms)
-    - Skips ``/mcp`` endpoints (MCP handler manages its own access logging)
     """
 
-    def __init__(self, app, app_logger=None, access_logger=None, skip_path_prefix="/mcp"):
+    def __init__(self, app, app_logger=None, access_logger=None):
         super().__init__(app)
         self.app_logger = app_logger
         self.access_logger = access_logger
-        self.skip_path_prefix = skip_path_prefix
 
     async def dispatch(self, request: Request, call_next):
-        # Skip paths matching the configured prefix (MCP handler manages its own access logging)
-        if self.skip_path_prefix and request.url.path.startswith(self.skip_path_prefix):
-            return await call_next(request)
+        # All paths are logged — no skip logic
 
         trace_id = uuid.uuid4().hex[:8]
         trace_id_var.set(trace_id)

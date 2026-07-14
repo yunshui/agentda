@@ -27,7 +27,7 @@ app = FastAPI(title="后台 API")
 
 # Setup logging
 app_logger, access_logger = setup_logging("api-core", access_log_name="api-acc", log_dir="/data/logs/api-core")
-app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=access_logger, skip_path_prefix="/api")
+app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=access_logger)
 
 # 加载模拟用户数据
 DATA_FILE = os.path.join(os.path.dirname(__file__), "users.json")

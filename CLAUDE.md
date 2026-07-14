@@ -80,8 +80,23 @@ All tools automatically inject the authenticated user's ID — no user_id parame
 ### Agent Core (port 8000)
 | Path | Method | Description |
 |------|--------|-------------|
-| `/agent/report` | POST | Submit client event/action report |
+| `/agent/report` | POST | Submit client event/action report (see ReportRequest model below) |
 | `/agent/health` | GET | Health check |
+
+**ReportRequest fields:**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| user_id | string | yes | User identifier |
+| client_ip | string | yes | Client IP address |
+| mac_address | string | yes | Client MAC address |
+| os_version | string | yes | Operating system version |
+| app_name | string | yes | Application name |
+| app_version | string | yes | Application version |
+| screen_resolution | string | yes | Screen resolution |
+| event_type | string | yes | Event type: action or event |
+| event_params | dict | no | Event parameters (default `{}`) |
+| message_content | string | yes | Event message content |
 
 ### MCP Core (port 8001)
 | Path | Method | Description |

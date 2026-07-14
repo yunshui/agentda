@@ -23,7 +23,7 @@ app = FastAPI(title="Agent Core")
 
 # Setup logging (no access log bypass — all requests are logged)
 app_logger, access_logger = setup_logging("agent-core", access_log_name="agent-acc", log_dir="/data/logs/agent-core")
-app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=access_logger, skip_path_prefix="")
+app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=access_logger)
 
 
 # ==================== Request Model ====================

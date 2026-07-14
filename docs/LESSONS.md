@@ -12,7 +12,7 @@
 
 ## Logging
 
-1. **MCP path skip in access log** — The MCP middleware needs its own access logging at tool-name granularity (not just URL path). The `skip_path_prefix` parameter on `AccessLogMiddleware` enables this pattern.
+1. **Access log middleware simplification** — The `skip_path_prefix` parameter was removed from `AccessLogMiddleware`. All requests are now logged uniformly — the middleware handles per-request trace IDs, MDC context, and access logging without configuration.
 
 2. **Access log naming** — Separating access log names from app log names (`api-acc` vs `api-core`) allows different retention policies and easier parsing.
 
