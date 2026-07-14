@@ -28,6 +28,13 @@ app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=acc
 
 # ==================== Request Model ====================
 
+class ReportItem(BaseModel):
+    event_type: str = Field(..., description="Event type: action or event")
+    event_params: dict = Field(default_factory=dict, description="Event parameters")
+    message_content: str = Field(..., description="Event message content")
+    event_time: str = Field(..., description="Event occurrence time (yyyy-MM-dd HH:mm:ss.SSS)")
+
+
 class ReportRequest(BaseModel):
     user_id: str = Field(..., description="User identifier")
     client_ip: str = Field(..., description="Client IP address")
@@ -36,9 +43,7 @@ class ReportRequest(BaseModel):
     app_name: str = Field(..., description="Application name")
     app_version: str = Field(..., description="Application version")
     screen_resolution: str = Field(..., description="Screen resolution")
-    event_type: str = Field(..., description="Event type: action or event")
-    event_params: dict = Field(default_factory=dict, description="Event parameters")
-    message_content: str = Field(..., description="Event message content")
+    events: list[ReportItem] = Field(..., description="List of event/action items")
 
 
 # ==================== Endpoints ====================
@@ -46,20 +51,25 @@ class ReportRequest(BaseModel):
 @app.post("/agent/report")
 async def agent_report(report: ReportRequest):
     """
-    Receive and log client event reports.
+    Receive and log client event reports in batch.
 
-    Accepts structured event data from client applications,
-    logs it, and acknowledges receipt.
+    Accepts a list of structured events from client applications,
+    logs each event individually with shared client context.
     """
-    app_logger.info(
-        "Agent report: user=%s event=%s app=%s/%s ip=%s",
-        report.user_id,
-        report.event_type,
-        report.app_name,
-        report.app_version,
-        report.client_ip,
-    )
-    return {"status": "success", "message": "Report received"}
+    count = len(report.events)
+    for i, item in enumerate(report.events, 1):
+        app_logger.info(
+            "[%d/%d] Agent report: user=%s event=%s app=%s/%s ip=%s ts=%s msg=%s",
+            i, count,
+            report.user_id,
+            item.event_type,
+            report.app_name,
+            report.app_version,
+            report.client_ip,
+            item.event_time,
+            item.message_content,
+        )
+    return {"status": "success", "message": f"{count} event(s) received"}
 
 
 @app.get("/agent/health")

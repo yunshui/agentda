@@ -94,9 +94,16 @@ All tools automatically inject the authenticated user's ID — no user_id parame
 | app_name | string | yes | Application name |
 | app_version | string | yes | Application version |
 | screen_resolution | string | yes | Screen resolution |
+| events | array[object] | yes | List of event/action items |
+
+**ReportItem fields (inside `events` array):**
+
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
 | event_type | string | yes | Event type: action or event |
 | event_params | dict | no | Event parameters (default `{}`) |
 | message_content | string | yes | Event message content |
+| event_time | string | yes | Event occurrence time (yyyy-MM-dd HH:mm:ss.SSS) |
 
 ### MCP Core (port 8001)
 | Path | Method | Description |

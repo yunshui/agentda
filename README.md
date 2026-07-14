@@ -355,7 +355,9 @@ python tools/generate_token_py --user-id 000000001 --refresh-expires 7
 
 ### POST /agent/report
 
-提交客户端事件/动作报告。
+提交客户端事件/动作报告（批量模式）。
+
+客户端上下文字段（共享）和事件列表（`events`）分开，支持一次上报多个事件。
 
 #### 请求体
 
@@ -368,9 +370,16 @@ python tools/generate_token_py --user-id 000000001 --refresh-expires 7
 | app_name | string | 是 | 应用名称 |
 | app_version | string | 是 | 应用版本 |
 | screen_resolution | string | 是 | 屏幕分辨率 |
+| events | array[object] | 是 | 事件列表，每项包含： |
+
+**events[i] 字段：**
+
+| 字段 | 类型 | 必填 | 说明 |
+|------|------|------|------|
 | event_type | string | 是 | 事件类型：action 或 event |
 | event_params | object | 否 | 事件参数（默认为空对象） |
 | message_content | string | 是 | 事件消息内容 |
+| event_time | string | 是 | 事件发生时间 (yyyy-MM-dd HH:mm:ss.SSS) |
 
 #### 请求示例
 
@@ -383,9 +392,20 @@ python tools/generate_token_py --user-id 000000001 --refresh-expires 7
   "app_name": "ClientApp",
   "app_version": "1.0.0",
   "screen_resolution": "1920x1080",
-  "event_type": "action",
-  "event_params": {"action": "login"},
-  "message_content": "User logged in"
+  "events": [
+    {
+      "event_type": "action",
+      "event_params": {"action": "login"},
+      "message_content": "User logged in",
+      "event_time": "2026-07-14 10:30:00.000"
+    },
+    {
+      "event_type": "action",
+      "event_params": {"action": "query", "target": "finance"},
+      "message_content": "User queried financial data",
+      "event_time": "2026-07-14 10:30:05.000"
+    }
+  ]
 }
 ```
 
@@ -394,7 +414,7 @@ python tools/generate_token_py --user-id 000000001 --refresh-expires 7
 ```json
 {
   "status": "success",
-  "message": "Report received"
+  "message": "2 event(s) received"
 }
 ```
 
