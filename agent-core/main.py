@@ -13,7 +13,7 @@ _project_root = str(Path(__file__).resolve().parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
 
-from datetime import datetime, timezone
+from datetime import datetime
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
@@ -57,7 +57,7 @@ async def agent_report(report: ReportRequest):
     logs each event individually with shared client context.
     """
     count = len(report.events)
-    now = datetime.now(timezone.utc)
+    now = datetime.now()
     systime = now.strftime("%Y-%m-%d %H:%M:%S.") + f"{now.microsecond // 1000:03d}"
     for i, item in enumerate(report.events, 1):
         app_logger.info(

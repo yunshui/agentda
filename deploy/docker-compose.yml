@@ -11,4 +11,5 @@ services:
       - /home/prdmng/agentda/logs:/data/logs
     environment:
       - API_CORE_URL=http://localhost:8002
+      - TZ=Asia/Shanghai
     restart: unless-stopped
