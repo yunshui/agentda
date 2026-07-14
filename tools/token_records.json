@@ -82,5 +82,33 @@
     "refresh_expires_at": "2026-08-13T02:44:50Z",
     "issued_at": "2026-07-14T02:44:50Z",
     "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "1Nn8VxcHsWhoBg5duIQD4w",
+    "refresh_expires_at": "2026-08-13T10:30:45Z",
+    "issued_at": "2026-07-14T10:30:45Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "hasLdeRseI73jFzRYy13wA",
+    "refresh_expires_at": "2026-08-13T10:32:00Z",
+    "issued_at": "2026-07-14T10:32:00Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "1coQbgx2epFzwxDp-vj6Sg",
+    "refresh_expires_at": "2026-08-13T10:32:08Z",
+    "issued_at": "2026-07-14T10:32:08Z",
+    "status": "active"
+  },
+  {
+    "user_id": "000000001",
+    "refresh_jti": "EwcBU9mA6lfgzNOcB_UUmg",
+    "refresh_expires_at": "2026-08-13T10:32:22Z",
+    "issued_at": "2026-07-14T10:32:22Z",
+    "status": "active"
   }
 ]

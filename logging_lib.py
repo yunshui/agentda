@@ -27,7 +27,7 @@ duration_ms_var: ContextVar[str] = ContextVar("duration_ms", default="-")
 # ==================== Configuration ====================
 
 LOG_FORMAT = (
-    "%(asctime)s|%(levelname)-5s|%(name)-36s|"
+    "%(asctime)s|%(levelname)s|%(name)s|"
     "%(clientIp)s|%(UserID)s|%(traceId)s|"
     "%(method)s|%(uri)s|%(status)s|%(duration_ms)s|"
     "%(message)s"
