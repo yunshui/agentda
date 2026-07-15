@@ -107,7 +107,7 @@ All tools automatically inject the authenticated user's ID — no user_id parame
 
 **Log format (pipe delimited, no key= prefixes):**
 ```
-<time>|<user_id>|<client_ip>|<mac_address>|<os_version>|<app_name>|<app_version>|<screen_resolution>|<event_time>|<event_type>|<event_params>|<message_content>
+<user_id>|<client_ip>|<mac_address>|<os_version>|<app_name>|<app_version>|<screen_resolution>|<event_time>|<event_type>|<event_params>|<message_content>
 ```
 
 ### MCP Core (port 8001)
