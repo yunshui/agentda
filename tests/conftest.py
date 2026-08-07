@@ -1,7 +1,7 @@
 """
 Shared test fixtures and configuration for all Agentda tests.
 
-Adds the project root to sys.path so that service modules and logging_lib
+Adds the project root to sys.path so that service modules and common.logging_lib
 are importable from the tests/ directory.
 """
 
@@ -81,7 +81,7 @@ def import_service_app(service_dir: str, log_dir: str = None):
         sys.path.insert(0, service_path)
 
     # Patch log_dir in setup_logging before importing the module
-    import logging_lib
+    from common import logging_lib
     original_setup = logging_lib.setup_logging
 
     def patched_setup(*args, **kwargs):

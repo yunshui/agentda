@@ -8,7 +8,7 @@ Accepts structured event data and logs it for downstream processing.
 import sys
 from pathlib import Path
 
-# Ensure project root is in sys.path so logging_lib is importable
+# Ensure project root is in sys.path so common.logging_lib is importable
 _project_root = str(Path(__file__).resolve().parent.parent)
 if _project_root not in sys.path:
     sys.path.insert(0, _project_root)
@@ -16,7 +16,7 @@ if _project_root not in sys.path:
 from fastapi import FastAPI
 from pydantic import BaseModel, Field
 
-from logging_lib import setup_logging, AccessLogMiddleware
+from common.logging_lib import setup_logging, AccessLogMiddleware
 
 app = FastAPI(title="Agent Core")
 

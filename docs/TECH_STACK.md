@@ -30,8 +30,8 @@
 - **httpx** — Async HTTP client
 - **anyio** — Async runtime
 
-### Shared
-- **logging_lib.py** — Custom logging with MDC context, daily rotation, access log middleware
+### Shared (common/)
+- **common/logging_lib.py** — Custom logging with MDC context, daily rotation, access log middleware
 
 ## Security
 

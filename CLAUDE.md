@@ -41,6 +41,10 @@ config/
   users.json           — User data (8 admin users, not committed to git)
   settings.json        — api-core config (FINANCE_DICTIONARY_URL, FINANCE_QUERY_URL, DICTIONARY_CACHE_TTL)
 
+common/
+  logging_lib.py       — Shared logging: MDC context, daily rotation, access log middleware
+  __init__.py
+
 mcp-core/
   main.py              — MCP service: token auth, /mcp endpoint, MCP tool definitions
   config.py            — Environment-based configuration

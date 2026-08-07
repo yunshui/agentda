@@ -20,7 +20,7 @@ from typing import Optional
 import json
 import os
 
-from logging_lib import setup_logging, AccessLogMiddleware, user_id_var
+from common.logging_lib import setup_logging, AccessLogMiddleware, user_id_var
 from finance_client import (
     FinanceServiceError,
     get_finance_dictionary,

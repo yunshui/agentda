@@ -25,7 +25,7 @@ COPY api-core/ api-core/
 COPY mcp-core/ mcp-core/
 COPY tools/ tools/
 COPY config/ config/
-COPY logging_lib.py .
+COPY common/ common/
 
 COPY deploy/docker/entrypoint.sh .
 RUN chmod +x entrypoint.sh
