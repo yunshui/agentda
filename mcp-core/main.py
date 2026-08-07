@@ -111,6 +111,7 @@ def load_rsa_keys():
     # 加载私钥
     env_private = os.environ.get("RSA_PRIVATE_KEY")
     if env_private:
+        app_logger.info("从环境变量 RSA_PRIVATE_KEY 加载私钥")
         private_key = serialization.load_pem_private_key(
             env_private.encode('utf-8'),
             password=None,
@@ -118,7 +119,7 @@ def load_rsa_keys():
         )
     else:
         # 从文件加载
-        private_key_file = Path(__file__).parent.parent / "tools" / "private_key.pem"
+        private_key_file = (Path(__file__).parent.parent / "tools" / "private_key.pem").resolve()
         if private_key_file.exists():
             with open(private_key_file, 'rb') as f:
                 private_key = serialization.load_pem_private_key(
@@ -127,17 +128,20 @@ def load_rsa_keys():
                     backend=default_backend()
                 )
             app_logger.info(f"从文件加载私钥: {private_key_file}")
+        else:
+            app_logger.warning(f"私钥文件不存在: {private_key_file}")
 
     # 加载公钥
     env_public = os.environ.get("RSA_PUBLIC_KEY")
     if env_public:
+        app_logger.info("从环境变量 RSA_PUBLIC_KEY 加载公钥")
         public_key = serialization.load_pem_public_key(
             env_public.encode('utf-8'),
             backend=default_backend()
         )
     else:
         # 从文件加载
-        public_key_file = Path(__file__).parent.parent / "tools" / "public_key.pem"
+        public_key_file = (Path(__file__).parent.parent / "tools" / "public_key.pem").resolve()
         if public_key_file.exists():
             with open(public_key_file, 'rb') as f:
                 public_key = serialization.load_pem_public_key(
@@ -145,6 +149,8 @@ def load_rsa_keys():
                     backend=default_backend()
                 )
             app_logger.info(f"从文件加载公钥: {public_key_file}")
+        else:
+            app_logger.warning(f"公钥文件不存在: {public_key_file}")
 
     if not private_key:
         app_logger.warning("未找到 RSA 私钥，请设置 RSA_PRIVATE_KEY 环境变量或生成密钥对")
@@ -475,7 +481,6 @@ async def get_my_info() -> dict:
     - name: 姓名
     - department: 部门
     - role: 角色（viewer/admin）
-    - balance: 账户余额
 
     此工具不接受任何用户标识参数，身份从认证上下文自动获取。
     仅能查询当前已认证用户的信息，严禁用于尝试获取他人数据。
@@ -501,7 +506,7 @@ async def get_my_department() -> dict:
     - name: 姓名
     - department: 部门名称
 
-    此工具仅返回部门相关数据，不包含余额、角色等其他信息。
+    此工具仅返回部门相关数据，不包含角色等其他信息。
     如需完整信息，请使用 get_my_info 工具。
     """
     user_id = current_user_id.get()
@@ -515,36 +520,6 @@ async def get_my_department() -> dict:
             "user_id": user_data.get("user_id"),
             "name": user_data.get("name"),
             "department": user_data.get("department")
-        }
-
-
-@mcp.tool()
-@secure_api_call
-async def get_my_balance() -> dict:
-    """
-    获取当前用户的账户余额。
-
-    当用户询问"我的余额"、"我还有多少钱"、"账户余额"、"财务状况"、"多少钱"或"余额查询"时调用此工具。
-
-    返回内容：
-    - user_id: 用户编号
-    - name: 姓名
-    - balance: 账户余额（数值）
-
-    此工具不接受任何用户标识参数，身份从认证上下文自动获取。
-    仅能查询当前已认证用户的余额，严禁用于尝试获取他人数据。
-    """
-    user_id = current_user_id.get()
-
-    async with httpx.AsyncClient() as client:
-        response = await client.get(f"{API_CORE_URL}/api/user/{user_id}")
-        response.raise_for_status()
-        user_data = response.json()
-        # 过滤只返回余额相关信息
-        return {
-            "user_id": user_data.get("user_id"),
-            "name": user_data.get("name"),
-            "balance": user_data.get("balance", 0)
         }
 
 
@@ -681,17 +656,17 @@ async def query_financial_metrics(
     ┌─────────────────────────────────────────────────────────────────┐
     │ 用户问题                        │ 参数设置                      │
     ├─────────────────────────────────────────────────────────────────┤
-    │ "去年的净利润"                  │ metric="NET_PROFIT",           │
+    │ "去年的净利润"                  │ metric="1600000",             │
     │                                 │ year=2025                     │
     ├─────────────────────────────────────────────────────────────────┤
-    │ "一季度的不良率"                 │ metric="NPL_RATIO",           │
+    │ "一季度的营业净收入"             │ metric="1100000",             │
     │                                 │ year=2025, quarter=1          │
     ├─────────────────────────────────────────────────────────────────┤
-    │ "最近三年的净利息收入"           │ metric="NET_INTEREST_INCOME", │
+    │ "最近三年的总资产"               │ metric="2100000",             │
     │                                 │ year 不指定, granularity=      │
     │                                 │ "yearly"                      │
     ├─────────────────────────────────────────────────────────────────┤
-    │ "各季度的资产负债总额"           │ metric="TOTAL_ASSETS",        │
+    │ "各季度的总负债"                 │ metric="2200000",             │
     │                                 │ granularity="quarterly"       │
     └─────────────────────────────────────────────────────────────────┘
 

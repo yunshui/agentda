@@ -40,13 +40,16 @@ curl -X POST http://localhost:8000/agent/report \
 
 ### User API (via API Core)
 
+> 用户编号取自 `config/users.json`（真实用户数据，不在此处展示）。以下示例使用占位编号 `000000000`，实际调用时请替换为有效用户。
+
 ```bash
 # Get user info
-curl http://localhost:8002/api/user/000000001
-# → {"user_id":"000000001","name":"张三","department":"BR001","role":"admin","balance":1000000}
+curl http://localhost:8002/api/user/000000000
+# → 有效用户: {"user_id":"...","name":"...","department":"...","role":"..."}
+# → 用户不存在: {"errorCode":"404","errorMsg":"用户不存在"}
 
 # List all users (admin only)
-curl http://localhost:8002/api/admin/000000001/users
+curl http://localhost:8002/api/admin/000000000/users
 ```
 
 ### Financial Queries
@@ -57,7 +60,7 @@ curl http://localhost:8002/api/finance/dictionary
 
 # Query metric
 curl "http://localhost:8002/api/finance/query?metric=NET_PROFIT&year=2025&granularity=yearly" \
-  -H "X-User-ID: 000000001"
+  -H "X-User-ID: 000000000"
 ```
 
 ### MCP Protocol
@@ -92,9 +95,8 @@ After deployment:
 - [ ] Health endpoints return 200 OK
 - [ ] Agent report endpoint accepts and logs data
 - [ ] Token refresh works (returns new access token)
-- [ ] MCP tools list returns 7 tools
-- [ ] Financial queries return simulated data
-- [ ] RLS filtering works (user BR002 cannot see BR001 data)
+- [ ] MCP tools list returns 6 tools
+- [ ] Financial queries return data from the FINANCE service
 - [ ] Admin-only endpoints reject viewer users
 - [ ] Log files created in correct directories
 - [ ] Docker containers start and stay running

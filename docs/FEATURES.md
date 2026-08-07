@@ -4,12 +4,11 @@
 
 | Endpoint | Description | Auth Required |
 |----------|-------------|---------------|
-| `GET /api/user/{user_id}` | Get user profile (name, dept, role, balance) | Via MCP Core |
+| `GET /api/user/{user_id}` | Get user profile (name, dept, role) | Via MCP Core |
 | `GET /api/admin/{user_id}/users` | List all users (admin only) | Via MCP Core |
 
 ### MCP Tools
 - `get_my_info` — Full profile of authenticated user
-- `get_my_balance` — Account balance only
 - `get_my_department` — Department info only
 - `check_my_permission` — Role/privilege check
 - `list_all_users` — All users (admin-only)

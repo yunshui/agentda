@@ -57,7 +57,7 @@ Claude Code ──stdio──► MCP Client ──HTTP──► MCP Core (port 8
                                                   │
                                           calls API Core (port 8002)
                                                   │
-                                          queries users.json / simulated data
+                                          queries config/users.json / FINANCE service
 ```
 
 ## Authentication Flow

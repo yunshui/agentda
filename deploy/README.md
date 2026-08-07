@@ -226,7 +226,9 @@ docker-compose up -d
 
 ### Q: 端口被占用
 
-修改 `deploy/docker-compose.yml` 中的端口映射：
+`deploy/docker/entrypoint.sh` 启动时会先检测 `8000/8001/8002` 三个端口，若已有进程监听则自动停止（SIGTERM，1 秒后未退出再 `kill -9`），随后才启动对应服务。因此容器内重复启动/重启时无需手动处理端口占用。
+
+若宿主机端口与容器内端口冲突（如宿主机已有进程监听 8000），则修改 `deploy/docker-compose.yml` 中的端口映射：
 
 ```yaml
 ports:
@@ -265,5 +267,5 @@ deploy/
 ├── requirements.in                 # 合并后的 Python 依赖
 └── docker/
     ├── Dockerfile                  # 整合镜像构建文件（含 api-core、mcp-core、agent-core）
-    └── entrypoint.sh               # 多服务启动脚本
+    └── entrypoint.sh               # 多服务启动脚本（启动前自动停止已占用端口的旧进程）
 ```

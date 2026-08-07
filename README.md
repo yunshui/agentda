@@ -152,7 +152,7 @@ sequenceDiagram
     MR->>MR: RSA 解密 → 提取 user_id
     MR->>MR: current_user_id = "000000001"
     MR->>BA: GET /api/user/000000001<br/>X-User-ID: 000000001
-    BA-->>MR: {name, department, balance, role}
+    BA-->>MR: {name, department, role}
     MR-->>C: MCP 格式化响应
 
     Note over C,FS: Token 过期 → 自动刷新
@@ -340,7 +340,6 @@ python tools/generate_token_py --user-id 000000001 --refresh-expires 7
 | 工具 | 说明 |
 |------|------|
 | `get_my_info` | 获取当前用户的完整个人信息 |
-| `get_my_balance` | 获取当前用户的账户余额 |
 | `get_my_department` | 获取当前用户所在部门 |
 | `check_my_permission` | 检查当前用户权限角色 |
 | `list_all_users` | 查询所有用户列表（仅 admin） |

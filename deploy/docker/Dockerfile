@@ -24,6 +24,7 @@ COPY agent-core/ agent-core/
 COPY api-core/ api-core/
 COPY mcp-core/ mcp-core/
 COPY tools/ tools/
+COPY config/ config/
 COPY logging_lib.py .
 
 COPY deploy/docker/entrypoint.sh .

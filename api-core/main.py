@@ -17,11 +17,16 @@ for _p in [_project_root, _service_dir]:
 
 from fastapi import FastAPI, HTTPException, Header
 from typing import Optional
-from datetime import datetime, timezone
 import json
 import os
 
 from logging_lib import setup_logging, AccessLogMiddleware, user_id_var
+from finance_client import (
+    FinanceServiceError,
+    get_finance_dictionary,
+    get_allowed_metrics,
+    query_metric_data,
+)
 
 app = FastAPI(title="后台 API")
 
@@ -29,20 +34,41 @@ app = FastAPI(title="后台 API")
 app_logger, access_logger = setup_logging("api-core", access_log_name="api-acc", log_dir="/data/logs/api-core")
 app.add_middleware(AccessLogMiddleware, app_logger=app_logger, access_logger=access_logger)
 
-# 加载模拟用户数据
-DATA_FILE = os.path.join(os.path.dirname(__file__), "users.json")
+# 加载用户数据（位于项目根目录 config/ 下，与 api-core 平级）
+DATA_FILE = os.path.join(_project_root, "config", "users.json")
 with open(DATA_FILE, encoding="utf-8") as f:
     USERS = json.load(f)
 
-# 导入财务配置
-from dictionary import (
-    FINANCE_DICTIONARY,
-    ALLOWED_METRICS,
-    USER_BRANCH_MAPPING,
-    get_metric_unit,
-    get_metric_display_name,
-    get_simulated_data,
-)
+
+# ==================== 公共用户校验 ====================
+
+def _validate_user(user_id: str):
+    """
+    公共校验：用户编号格式 + 是否存在于本地 users.json。
+
+    校验失败（格式错误 / 用户不存在 / 校验异常）统一返回 200 + errorCode/errorMsg，
+    不抛出 HTTP 异常，由调用方直接返回给客户端。
+
+    Returns:
+        (user_dict, None): 校验通过
+        (None, {"errorCode": ..., "errorMsg": ...}): 校验失败
+    """
+    try:
+        # 1. 格式校验
+        if not user_id or not user_id.isdigit() or len(user_id) != 9:
+            app_logger.warning(f"用户编号格式错误: {user_id}")
+            return None, {"errorCode": "400", "errorMsg": "用户编号必须为9位数字"}
+
+        # 2. 是否存在于本地 users.json
+        user = USERS.get(user_id)
+        if not user:
+            app_logger.warning(f"用户不存在: {user_id}")
+            return None, {"errorCode": "404", "errorMsg": "用户不存在"}
+
+        return user, None
+    except Exception as e:
+        app_logger.error(f"用户校验异常: {e}, user_id={user_id}")
+        return None, {"errorCode": "500", "errorMsg": "用户校验异常，请联系管理员"}
 
 
 # ==================== 用户相关端点 ====================
@@ -56,25 +82,16 @@ async def get_user(user_id: str):
         user_id: 9位数字用户编号
 
     Returns:
-        用户信息字典
-
-    Raises:
-        400: 用户编号格式错误
-        404: 用户不存在
+        校验失败: 200 + {"errorCode": ..., "errorMsg": ...}
+        校验成功: 用户信息字典
     """
-    # 验证用户编号格式
-    if not user_id.isdigit() or len(user_id) != 9:
-        app_logger.warning(f"用户编号格式错误: {user_id}")
-        raise HTTPException(400, "用户编号必须为9位数字")
+    # 公共校验：格式 + 是否存在于 users.json
+    user, err = _validate_user(user_id)
+    if err:
+        return err
 
     # 设置 MDC 用户上下文
     user_id_var.set(user_id)
-
-    # 查询用户
-    user = USERS.get(user_id)
-    if not user:
-        app_logger.warning(f"用户不存在: {user_id}")
-        raise HTTPException(404, "用户不存在")
 
     app_logger.info(f"用户信息查询成功: {user_id}")
     return user
@@ -86,37 +103,28 @@ async def get_all_users(user_id: str):
     管理员查询所有用户信息（不含金额）
 
     只有 admin 角色的用户才能调用此接口。
-    返回所有用户的基本信息，不包括 balance 字段。
+    返回所有用户的基本信息，不包含金额字段。
 
     Args:
         user_id: 9位数字用户编号（调用者）
 
     Returns:
-        用户列表，每个用户包含 user_id, name, department, role
-
-    Raises:
-        400: 用户编号格式错误
-        403: 非管理员用户
-        404: 用户不存在
+        校验失败: 200 + {"errorCode": ..., "errorMsg": ...}
+        权限不足: 200 + {"errorCode": "403", "errorMsg": "需要管理员权限"}
+        校验成功: 用户列表，每个用户包含 user_id, name, department, role
     """
-    # 验证用户编号格式
-    if not user_id.isdigit() or len(user_id) != 9:
-        app_logger.warning(f"用户编号格式错误: {user_id}")
-        raise HTTPException(400, "用户编号必须为9位数字")
+    # 公共校验：格式 + 是否存在于 users.json
+    caller, err = _validate_user(user_id)
+    if err:
+        return err
 
     # 设置 MDC 用户上下文
     user_id_var.set(user_id)
 
-    # 查询调用者
-    caller = USERS.get(user_id)
-    if not caller:
-        app_logger.warning(f"用户不存在: {user_id}")
-        raise HTTPException(404, "用户不存在")
-
     # 检查是否为管理员
     if caller.get("role") != "admin":
         app_logger.warning(f"非管理员尝试查询用户列表: {user_id}")
-        raise HTTPException(403, "需要管理员权限")
+        return {"errorCode": "403", "errorMsg": "需要管理员权限"}
 
     # 返回所有用户信息（不含金额）
     users_list = []
@@ -138,14 +146,22 @@ async def get_all_users(user_id: str):
 # ==================== 财务相关端点 ====================
 
 @app.get("/api/finance/dictionary")
-async def get_finance_dictionary():
+async def get_finance_dictionary_endpoint():
     """
     获取财务指标元数据字典
 
-    纯静态返回，无需数据库查询。
+    数据来自真实环境 FINANCE 服务 get_dictionary 接口。
+    该接口返回内容一般不会变化，服务缓存 10 分钟。
     用于 AI 进行语义匹配和指标选择。
     """
-    return FINANCE_DICTIONARY
+    try:
+        data = await get_finance_dictionary()
+    except FinanceServiceError as e:
+        app_logger.error(f"财务字典获取失败: {e}")
+        raise HTTPException(e.status_code, e.message)
+
+    app_logger.info(f"财务字典查询成功: metrics={len(data.get('metrics', []))}")
+    return data
 
 
 @app.get("/api/finance/query")
@@ -161,9 +177,9 @@ async def query_finance_metrics(
     查询财务指标数据
 
     安全措施：
-    1. 白名单验证 - 只允许查询字典中定义的指标
-    2. RLS 行级安全 - 强制过滤 branch_id
-    3. 参数化查询 - 防止 SQL 注入
+    1. 白名单验证 - 只允许查询字典中定义的指标（白名单来自 FINANCE get_dictionary）
+    2. 参数校验 - 防止非法参数
+    3. 数据来自真实环境 FINANCE 服务 get_t51_amount 接口
 
     Args:
         metric: 指标名（必须是字典中的 standard_name）
@@ -174,25 +190,34 @@ async def query_finance_metrics(
         x_user_id: 用户编号（从 Header 传入）
 
     Returns:
-        财务数据结果
+        用户校验失败: 200 + {"errorCode": ..., "errorMsg": ...}
+        财务数据结果（FINANCE 服务返回内容）
 
     Raises:
         400: 参数格式错误
+        502: 财务数据服务不可用
     """
-    # 1. 验证用户编号
-    if not x_user_id or not x_user_id.isdigit() or len(x_user_id) != 9:
-        app_logger.warning(f"用户编号格式错误: {x_user_id}")
-        raise HTTPException(400, "用户编号格式错误")
+    # 1. 公共校验：格式 + 是否存在于 users.json
+    _, err = _validate_user(x_user_id)
+    if err:
+        return err
 
     # 设置 MDC 用户上下文
     user_id_var.set(x_user_id)
 
-    # 2. 白名单验证
-    if metric not in ALLOWED_METRICS:
+    # 2. 获取指标白名单（FINANCE get_dictionary，带缓存）
+    try:
+        allowed_metrics = await get_allowed_metrics()
+    except FinanceServiceError as e:
+        app_logger.error(f"财务字典获取失败: {e}, user={x_user_id}")
+        raise HTTPException(e.status_code, e.message)
+
+    # 3. 白名单验证
+    if metric not in allowed_metrics:
         app_logger.warning(f"不支持的指标: {metric}, user={x_user_id}")
         raise HTTPException(400, f"不支持的指标: {metric}。请先调用 /api/finance/dictionary 获取支持的指标列表")
 
-    # 3. 参数校验
+    # 4. 参数校验
     if quarter is not None and (quarter < 1 or quarter > 4):
         raise HTTPException(400, "季度必须在 1-4 之间")
 
@@ -202,34 +227,34 @@ async def query_finance_metrics(
     if granularity not in ["yearly", "quarterly", "monthly"]:
         raise HTTPException(400, "granularity 必须是 yearly/quarterly/monthly")
 
-    # 4. RLS：获取机构代码
-    branch_id = USER_BRANCH_MAPPING.get(x_user_id, "BR000")
+    # 5. 调用 FINANCE get_t51_amount 查询数据
+    try:
+        result = await query_metric_data(
+            metric=metric,
+            year=year,
+            quarter=quarter,
+            month=month,
+            granularity=granularity,
+        )
+    except FinanceServiceError as e:
+        app_logger.error(f"财务数据查询失败: {e}, metric={metric}, user={x_user_id}")
+        raise HTTPException(e.status_code, e.message)
 
-    # 5. 获取模拟数据
-    data = get_simulated_data(
-        metric=metric,
-        branch_id=branch_id,
-        year=year,
-        quarter=quarter,
-        month=month,
-        granularity=granularity
-    )
+    # 6. 检查上游错误码
+    if str(result.get("errorCode")) != "0":
+        err_msg = result.get("errorMsg") or "财务数据服务返回异常"
+        app_logger.warning(
+            f"财务数据查询失败: metric={metric}, error={err_msg}, user={x_user_id}"
+        )
+        raise HTTPException(400, err_msg)
 
-    # 6. 构造返回结果
+    # 7. 返回 FINANCE 服务结果
     app_logger.info(
-        f"财务指标查询成功: metric={metric}, branch={branch_id}, "
+        f"财务指标查询成功: metric={metric}, "
         f"year={year}, quarter={quarter}, month={month}, granularity={granularity}, "
-        f"data_points={len(data)}"
+        f"data_points={len(result.get('data', []))}"
     )
-    return {
-        "metric": metric,
-        "metric_name": get_metric_display_name(metric),
-        "unit": get_metric_unit(metric),
-        "branch_id": branch_id,
-        "granularity": granularity,
-        "data": data,
-        "query_time": datetime.now(timezone.utc).isoformat()
-    }
+    return result
 
 
 # ==================== 健康检查 ====================

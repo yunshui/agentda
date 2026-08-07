@@ -4,3 +4,7 @@ __pycache__/
 .pytest_cache/
 deploy/output/
 logs
+
+# 真实配置与用户数据（含真实信息，不纳入版本控制；模板见对应 .json.mock 文件）
+config/users.json
+config/settings.json

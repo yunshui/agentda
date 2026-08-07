@@ -30,8 +30,7 @@ MOCK_USER_RESPONSE = {
     "user_id": "000000001",
     "name": "张三",
     "department": "财务部",
-    "role": "admin",
-    "balance": 125000.00
+    "role": "admin"
 }
 
 MOCK_USERS_LIST_RESPONSE = {
@@ -213,7 +212,6 @@ async def test_mcp_tools_list(mcp_app, access_token):
     assert "tools" in data["result"]
     tool_names = {t["name"] for t in data["result"]["tools"]}
     assert "get_my_info" in tool_names
-    assert "get_my_balance" in tool_names
     assert "get_my_department" in tool_names
     assert "check_my_permission" in tool_names
     assert "list_all_users" in tool_names
@@ -248,31 +246,6 @@ async def test_mcp_get_my_info(mcp_app, access_token):
     content_text = result["result"]["content"][0]["text"]
     assert "000000001" in content_text
     assert "张三" in content_text
-
-
-@pytest.mark.asyncio
-async def test_mcp_get_my_balance(mcp_app, access_token):
-    """Call get_my_balance tool via MCP."""
-    transport = ASGITransport(app=mcp_app)
-    headers = {"Authorization": f"Bearer {access_token}"}
-
-    with patch("httpx.AsyncClient.get", new=AsyncMock(side_effect=_mock_async_client_get)):
-        async with AsyncClient(transport=transport, base_url="http://test") as client:
-            resp = await client.post(
-                "/mcp",
-                json={
-                    "jsonrpc": "2.0",
-                    "method": "tools/call",
-                    "params": {"name": "get_my_balance", "arguments": {}},
-                    "id": 3
-                },
-                headers=headers
-            )
-
-    assert resp.status_code == 200
-    result = resp.json()
-    content_text = result["result"]["content"][0]["text"]
-    assert "125000.0" in content_text
 
 
 @pytest.mark.asyncio
@@ -467,8 +440,7 @@ async def test_mcp_viewer_permission(mcp_app, access_token_viewer):
                 "user_id": "000000003",
                 "name": "王五",
                 "department": "技术部",
-                "role": "viewer",
-                "balance": 88000.00
+                "role": "viewer"
             })
         return _make_mock_response(200, {})
 

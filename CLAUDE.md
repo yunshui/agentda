@@ -16,11 +16,10 @@ Three independent FastAPI services:
 
 - **`agent-core/`** (port 8000) — Receives and logs client event reports via `POST /agent/report`
 - **`mcp-core/`** (port 8001) — MCP remote service that authenticates requests via RSA-encrypted tokens and proxies to api-core
-- **`api-core/`** (port 8002) — Internal REST API providing user info and financial metric queries with simulated data
+- **`api-core/`** (port 8002) — Internal REST API providing user info and financial metric queries (backed by the real FINANCE financial service)
 
 Key security design:
-- Whitelist-based metric validation (only predefined metrics are queryable)
-- Row-Level Security (RLS) — users are mapped to branches; data access is filtered by `branch_id`
+- Whitelist-based metric validation (only metrics from the FINANCE dictionary are queryable)
 - Role-based access (admin can list all users; viewer can only query own data)
 - RSA-OAEP encrypted tokens (Access Token: 15min, Refresh Token: 7 days)
 - Token revocation blacklist via JSON file
@@ -34,10 +33,13 @@ agent-core/
 
 api-core/
   main.py              — FastAPI app with user/finance endpoints
-  config/
-    dictionary.py      — Financial metrics dictionary, simulated data, RLS mapping
-  users.json           — Mock user data (5 users, admin/viewer roles)
+  config.py            — Loads config from config/settings.json (env-overridable)
+  finance_client.py    — FINANCE client: get_dictionary / get_t51_amount, dictionary cached 10 min
   requirements.txt
+
+config/
+  users.json           — User data (8 admin users, not committed to git)
+  settings.json        — api-core config (FINANCE_DICTIONARY_URL, FINANCE_QUERY_URL, DICTIONARY_CACHE_TTL)
 
 mcp-core/
   main.py              — MCP service: token auth, /mcp endpoint, MCP tool definitions
@@ -66,7 +68,6 @@ deploy/
 | Tool | Description |
 |------|-------------|
 | `get_my_info` | Current user's full profile |
-| `get_my_balance` | Current user's balance |
 | `get_my_department` | Current user's department |
 | `check_my_permission` | Current user's role (admin/viewer) |
 | `list_all_users` | List all users (admin only) |
@@ -123,8 +124,8 @@ All tools automatically inject the authenticated user's ID — no user_id parame
 |------|--------|-------------|
 | `/api/user/{user_id}` | GET | Get user info |
 | `/api/admin/{user_id}/users` | GET | List all users (admin only) |
-| `/api/finance/dictionary` | GET | Financial metrics metadata |
-| `/api/finance/query` | GET | Query financial data |
+| `/api/finance/dictionary` | GET | Financial metrics metadata (from FINANCE `get_dictionary`, cached 10 min) |
+| `/api/finance/query` | GET | Query financial data (proxies FINANCE `get_t51_amount`) |
 | `/api/health` | GET | Health check |
 
 ## Log Paths
@@ -170,19 +171,18 @@ python tools/generate_token_py --show-private-key
 
 ## Test Users
 
-| user_id | name | role | branch |
-|---------|------|------|--------|
-| 000000001 | 张三 | admin | BR001 |
-| 000000002 | 李四 | admin | BR001 |
-| 000000003 | 王五 | viewer | BR002 |
-| 000000004 | 赵六 | viewer | BR001 |
-| 000000005 | 钱七 | admin | BR002 |
+用户数据保存在 `config/users.json`（含真实员工信息，未纳入版本控制），文档中不展示具体用户。
+用户编号为 9 位数字，由调用方在 MCP Token 中解密获得。
 
 ## Available Financial Metrics
 
-**Profitability**: NET_PROFIT (净利润), NET_INTEREST_INCOME (净利息收入)
-**Scale**: TOTAL_ASSETS (资产总额), TOTAL_LIABILITIES (负债总额)
-**Risk**: NPL_RATIO (不良贷款率), CAR_RATIO (资本充足率)
-**Business**: LOAN_BALANCE (贷款余额), DEPOSIT_BALANCE (存款余额)
+财务指标字典来自真实环境 FINANCE 服务 `get_dictionary` 接口（见 api-core/finance_client.py），服务缓存 10 分钟。
+指标以数字编码作为 `standard_name`（如 1100000 / 1600000 / 2100000 / 2200000），中文名与同义词以接口返回为准。
+查询前建议先调用 `/api/finance/dictionary` 获取最新指标列表。
 
 Query dimensions: year, quarter (1-4), month (1-12), granularity (yearly/quarterly/monthly)
+
+## FINANCE 财务服务配置
+
+- 两个接口的完整地址（含 `flowActionName`）在 `config/settings.json` 中分别配置：`FINANCE_DICTIONARY_URL`（get_dictionary）/ `FINANCE_QUERY_URL`（get_t51_amount），真实地址仅在 settings.json 中配置，环境变量同名可覆盖；代码直接调用配置的地址
+- `get_dictionary` 返回内容一般不变，缓存时间 `DICTIONARY_CACHE_TTL`（`config/settings.json` 中配置，默认 600 秒）
