@@ -18,7 +18,7 @@
 
 - **`agent-core`** (port 8000) — 客户端事件/动作上报端点，接收结构化事件数据并记录日志
 - **`mcp-core`** (port 8001) — MCP 远端服务，处理认证（RSA 加密 Token）、接收 MCP 请求、调用后端
-- **`api-core`** (port 8002) — 后台 REST API，提供用户查询和财务数据接口，含模拟数据
+- **`api-core`** (port 8002) — 后台 REST API，提供用户查询和财务数据接口，接入真实 FINANCE 财务数据服务
 
 ## Token 调用流程
 
@@ -269,10 +269,10 @@ RFC 标准 JWT 对比说明：本项目 Token 机制与 JWT 的核心区别在�
 |------|------|------|
 | 生成密钥对 | `generate_rsa_keypair()` | `tools/generate_token_py:61` |
 | 加密 Token | `generate_token()` | `tools/generate_token_py:136` |
-| 解密 Token | `decrypt_token()` | `mcp-core/main.py:209` |
-| 校验请求 | `verify_request()` | `mcp-core/main.py:393` |
-| 刷新 Token | `refresh_token()` | `mcp-core/main.py:311` |
-| 吊销 Token | `revoke_token()` | `mcp-core/main.py:359` |
+| 解密 Token | `decrypt_token()` | `mcp-core/main.py:233` |
+| 校验请求 | `verify_request()` | `mcp-core/main.py:420` |
+| 刷新 Token | `refresh_token()` | `mcp-core/main.py:336` |
+| 吊销 Token | `revoke_token()` | `mcp-core/main.py:387` |
 
 #### 安全性分析
 
@@ -333,6 +333,18 @@ python tools/generate_token_py --generate-key
 
 # 为用户生成 Token 对（Access Token + Refresh Token）
 python tools/generate_token_py --user-id 000000001 --refresh-expires 7
+```
+
+## 项目结构
+
+```
+agent-core/        客户端事件上报服务（port 8000）
+api-core/          后台 REST API（port 8002）
+mcp-core/          MCP 远端服务（port 8001）
+config/            配置文件（users.json / settings.json，含真实信息，不纳入版本控制；模板为对应 .json.mock）
+common/            共用代码（logging_lib.py：MDC 日志、每日轮转、访问日志中间件）
+tools/             密钥与 Token 管理工具
+deploy/            Docker 部署编排
 ```
 
 ## MCP 工具列表
@@ -440,30 +452,74 @@ python tools/generate_token_py --user-id 000000001 --refresh-expires 7
 }
 ```
 
+## MCP Core 接口
+
+MCP 远端服务端点（port 8001）：
+
+| 路径 | 方法 | 说明 |
+|------|------|------|
+| `/mcp` | POST | MCP JSON-RPC 端点 |
+| `/mcp/auth/refresh` | POST | 用 Refresh Token 换取新的 Access Token |
+| `/mcp/auth/revoke` | POST | 吊销 Refresh Token |
+| `/mcp/health` | GET | 健康检查 |
+
+## API Core 接口
+
+后台 REST API（port 8002），提供用户查询和财务指标查询：
+
+| 路径 | 方法 | 说明 |
+|------|------|------|
+| `/api/user/{user_id}` | GET | 获取用户信息 |
+| `/api/admin/{user_id}/users` | GET | 获取所有用户列表（仅 admin） |
+| `/api/finance/dictionary` | GET | 财务指标元数据字典（来自 FINANCE `get_dictionary`，缓存 10 分钟） |
+| `/api/finance/query` | GET | 查询财务指标数据（代理 FINANCE `get_t51_amount`） |
+| `/api/health` | GET | 健康检查 |
+
 ## 测试用户
+
+真实用户数据保存在 `config/users.json`（含真实员工信息，未纳入版本控制）。仓库中提供模板 `config/users.json.mock`，包含两个示例用户：
 
 | 用户编号 | 姓名 | 角色 | 所属机构 |
 |---------|------|------|---------|
-| 000000001 | 张三 | admin | BR001 |
-| 000000002 | 李四 | admin | BR001 |
-| 000000003 | 王五 | viewer | BR002 |
-| 000000004 | 赵六 | viewer | BR001 |
-| 000000005 | 钱七 | admin | BR002 |
+| 100000001 | 示例用户 | admin | 示例部门 |
+| 100000002 | 示例用户二 | viewer | 示例部门 |
+
+部署前将 `config/users.json.mock` 复制为 `config/users.json` 并填入真实用户数据。
 
 ## 支持的财务指标
 
-| 分类 | 指标名 | 中文名 |
-|------|--------|--------|
-| 盈利能力 | NET_PROFIT | 净利润 |
-| 盈利能力 | NET_INTEREST_INCOME | 净利息收入 |
-| 规模指标 | TOTAL_ASSETS | 资产总额 |
-| 规模指标 | TOTAL_LIABILITIES | 负债总额 |
-| 风险指标 | NPL_RATIO | 不良贷款率 |
-| 风险指标 | CAR_RATIO | 资本充足率 |
-| 业务指标 | LOAN_BALANCE | 贷款余额 |
-| 业务指标 | DEPOSIT_BALANCE | 存款余额 |
+财务指标字典来自真实 FINANCE 服务 `get_dictionary` 接口，指标以数字编码作为 `standard_name`（如 1100000 / 1600000 / 2100000 / 2200000），中文名与同义词以接口返回为准，服务缓存 10 分钟。
 
-支持按年、季度、月度粒度查询。
+查询前建议先调用 `GET /api/finance/dictionary` 获取最新指标列表。
+
+查询维度：year、quarter（1-4）、month（1-12）、granularity（yearly/quarterly/monthly）。
+
+## 日志路径
+
+| 服务 | 日志目录 | 应用日志 | 访问日志 |
+|------|---------|---------|---------|
+| agent-core | /data/logs/agent-core/ | agent-core-{date}.log | agent-acc-{date}.log |
+| mcp-core | /data/logs/mcp-core/ | mcp-core-{date}.log | mcp-acc-{date}.log |
+| api-core | /data/logs/api-core/ | api-core-{date}.log | api-acc-{date}.log |
+
+## 配置文件
+
+| 文件 | 说明 |
+|------|------|
+| `config/users.json` | 用户数据（含真实信息，未纳入版本控制） |
+| `config/users.json.mock` | 用户数据模板 |
+| `config/settings.json` | 财务服务配置（未纳入版本控制） |
+| `config/settings.json.mock` | 财务服务配置模板 |
+
+`config/settings.json` 配置项：
+
+| 配置项 | 说明 |
+|--------|------|
+| `FINANCE_DICTIONARY_URL` | 财务指标字典接口完整地址（含 `flowActionName=get_dictionary`），可用环境变量覆盖 |
+| `FINANCE_QUERY_URL` | 指标金额查询接口完整地址（含 `flowActionName=get_t51_amount`），可用环境变量覆盖 |
+| `DICTIONARY_CACHE_TTL` | 字典缓存时间（秒），默认 600 |
+
+部署时将 `.mock` 模板复制为实际文件并填写真实配置。
 
 ## 安全设计
 
